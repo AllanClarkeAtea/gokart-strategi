@@ -149,6 +149,15 @@ tr:hover td{background:#1A1A1A}
 .ldbf{height:100%;border-radius:5px}
 .ldbp{position:absolute;top:0;height:100%;width:2px;background:#C9A84C;opacity:.7}
 
+/* Logg */
+.logg-item{background:#161616;border:1px solid #2A2A2A;border-radius:10px;padding:.85rem 1rem;margin-bottom:.75rem}
+.logg-item-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:8px}
+.logg-item-name{font-size:14px;font-weight:700;color:#FFFFFF}
+.logg-item-meta{font-size:11px;color:#555}
+.logg-item-actions{display:flex;gap:6px}
+.logg-detail{font-size:11px;color:#C0C0C0;margin-bottom:.6rem;line-height:1.6}
+.logg-stints{overflow-x:auto;margin-top:.5rem}
+
 /* Responsive */
 @media(max-width:480px){
   .sg{grid-template-columns:repeat(2,1fr)}
@@ -175,6 +184,7 @@ tr:hover td{background:#1A1A1A}
   <button class="tab on" role="tab" aria-selected="true" data-t="setup" id="tab-setup" aria-controls="tc-setup">⚙ Oppsett</button>
   <button class="tab" role="tab" aria-selected="false" data-t="oversikt" id="tab-oversikt" aria-controls="tc-oversikt">📊 Oversikt</button>
   <button class="tab" role="tab" aria-selected="false" data-t="live" id="tab-live" aria-controls="tc-live">▶ Live</button>
+  <button class="tab" role="tab" aria-selected="false" data-t="logg" id="tab-logg" aria-controls="tc-logg">📋 Logg</button>
 </nav>
 
 <!-- ═══ OPPSETT ═══════════════════════════════════════════ -->
@@ -387,6 +397,22 @@ tr:hover td{background:#1A1A1A}
 </div>
 </div>
 
+<!-- ═══ LOGG ══════════════════════════════════════════════ -->
+<div class="tc" id="tc-logg" role="tabpanel" aria-labelledby="tab-logg">
+  <div class="card">
+    <h2 class="sec">Lagrede strategier</h2>
+    <p style="font-size:12px;color:#C0C0C0;line-height:1.7;margin-bottom:1rem">
+      Strategier lagres automatisk når du klikker "Lagre strategi". Maks 5 lagrede strategier – den eldste overskrives ved behov.
+    </p>
+    <button class="gbtn" style="margin-bottom:1rem" onclick="saveStrategy()">💾 Lagre gjeldende strategi</button>
+    <div id="loggEmpty" style="color:#555;font-size:13px;padding:1.5rem 0;text-align:center">
+      <div style="font-size:24px;margin-bottom:8px">📋</div>
+      Ingen lagrede strategier ennå. Beregn en strategi og klikk "Lagre gjeldende strategi".
+    </div>
+    <div id="loggList"></div>
+  </div>
+</div>
+
 </div><!-- /main -->
 </div><!-- /wrapper -->
 
@@ -481,6 +507,7 @@ document.querySelectorAll('.tab').forEach(t=>{
     document.querySelectorAll('.tab').forEach(x=>{x.classList.toggle('on',x===t);x.setAttribute('aria-selected',x===t?'true':'false');});
     document.querySelectorAll('.tc').forEach(x=>x.classList.toggle('on',x.id==='tc-'+id));
     if(id==='oversikt') rndrOvr();
+    if(id==='logg') rndrLogg();
   });
   t.addEventListener('keydown',e=>{
     const ts=[...document.querySelectorAll('.tab')],i=ts.indexOf(t);
@@ -1209,6 +1236,190 @@ function rndrOvrLive(sum){
       +'<div style="display:flex;gap:14px;font-size:11px;color:#555;margin-top:4px;flex-wrap:wrap"><span>'+fmS(tot)+' <span style="color:#2A2A2A">/ '+fmS(d.totalSec)+'</span></span><span>'+rN+' <span style="color:#2A2A2A">/ ~'+d.totalRnd+'</span></span><span>'+d.stintCount+' stints</span></div>'
       +'<div class="ldb" role="progressbar" aria-valuenow="'+Math.round(tot/60)+'" aria-valuemin="0" aria-valuemax="'+Math.round(d.totalSec/60)+'" aria-label="'+Math.round(tot/60)+' av '+Math.round(d.totalSec/60)+' min"><div class="ldbf" style="width:'+np2+'%;background:'+d.col+'"></div><div class="ldbp" style="left:'+pp2+'%"></div></div>'
       +'</div></div>';
+  }).join('');
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// LOGG – lagre og hente strategier (maks 5, localStorage)
+// ═══════════════════════════════════════════════════════════════
+const LOGG_KEY = 'gk_logg';
+const LOGG_MAX = 5;
+
+function loadLogg(){
+  try{ return JSON.parse(localStorage.getItem(LOGG_KEY)||'[]'); }
+  catch(e){ return []; }
+}
+function saveLogg(entries){
+  try{ localStorage.setItem(LOGG_KEY, JSON.stringify(entries)); }catch(e){}
+}
+
+function saveStrategy(){
+  if(!stints || stints.length===0){
+    alert('Beregn en strategi først.');
+    return;
+  }
+  const entries = loadLogg();
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('nb-NO',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const timeStr = now.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'});
+
+  const entry = {
+    id: Date.now(),
+    name: dateStr + ' ' + timeStr,
+    savedAt: now.toISOString(),
+    mode: mlbl(),
+    bsum: bsum(),
+    rSec,
+    minP,
+    pitSec,
+    lastBI,
+    lastBD,
+    drivers: drivers.map(d=>({name:d.name, lt:d.lt})),
+    kA, kB,
+    stints: stints.map(s=>({
+      type:s.type, di:s.di, name:s.name||'', sn:s.sn||0,
+      start:s.start, end:s.end, lT:s.lT||0, signAt:s.signAt||0,
+      bc:s.bc||0, num:s.num||0
+    }))
+  };
+
+  // Prepend new entry; if over max, remove oldest
+  entries.unshift(entry);
+  if(entries.length > LOGG_MAX) entries.splice(LOGG_MAX);
+  saveLogg(entries);
+
+  ann('Strategi lagret: ' + entry.name);
+  rndrLogg();
+  // Switch to Logg tab
+  document.querySelector('.tab[data-t="logg"]').click();
+}
+
+function deleteLoggEntry(id){
+  const entries = loadLogg().filter(e=>e.id!==id);
+  saveLogg(entries);
+  rndrLogg();
+}
+
+function loadStrategy(id){
+  const entries = loadLogg();
+  const entry = entries.find(e=>e.id===id);
+  if(!entry){ alert('Strategi ikke funnet.'); return; }
+
+  // Restore all state
+  mode = entry.mode==='Nitro'?'speed5':entry.mode.includes('Boost')?'boost':'speed4';
+  rSec = entry.rSec;
+  minP = entry.minP;
+  pitSec = entry.pitSec;
+  lastBI = entry.lastBI||10;
+  lastBD = entry.lastBD||60;
+  kA = entry.kA;
+  kB = entry.kB;
+  drivers = entry.drivers.map(d=>({name:d.name, lt:d.lt}));
+  boostW = mkBW(lastBI, lastBD, rSec);
+
+  stints = entry.stints.map(s=>({...s, status:'future', aStart:null, rep:false}));
+
+  // Update UI fields
+  document.getElementById('raceDur').value = Math.round(rSec/60);
+  document.getElementById('minPits').value = minP;
+  document.getElementById('pitDur').value = pitSec;
+  document.getElementById('bi').value = lastBI;
+  document.getElementById('bd').value = lastBD;
+  if(kA) document.getElementById('kA').value = kA;
+  if(kB) document.getElementById('kB').value = kB;
+
+  // Update mode buttons
+  document.querySelectorAll('.mb').forEach(b=>{
+    const isActive = (b.dataset.m===mode);
+    b.setAttribute('aria-pressed', isActive?'true':'false');
+  });
+  document.getElementById('bbox').style.display = mode==='boost'?'block':'none';
+
+  // Update driver count selector and fields
+  setCount(drivers.length);
+  // Fill in driver names and lap times
+  drivers.forEach((d,i)=>{
+    const nameEl=document.getElementById('d'+i+'n');
+    const lapEl=document.getElementById('d'+i+'l');
+    if(nameEl) nameEl.value=d.name;
+    if(lapEl) lapEl.value=d.lt.toFixed(1).replace('.',',');
+  });
+
+  // Render setup tab
+  rndrSetup(stints);
+  document.getElementById('res').style.display='block';
+
+  // Reset live state
+  lStints=[]; lRun=false; lElap=0; elog=[];
+  clearInterval(lTimer); lTimer=null;
+  document.getElementById('lContent').style.display='none';
+  document.getElementById('lEmpty').style.display='block';
+
+  ann('Strategi lastet: ' + entry.name);
+  // Switch to setup tab
+  document.querySelector('.tab[data-t="setup"]').click();
+}
+
+function rndrLogg(){
+  const entries = loadLogg();
+  const emptyEl = document.getElementById('loggEmpty');
+  const listEl  = document.getElementById('loggList');
+  if(!emptyEl || !listEl) return;
+
+  if(entries.length===0){
+    emptyEl.style.display='block';
+    listEl.innerHTML='';
+    return;
+  }
+  emptyEl.style.display='none';
+
+  listEl.innerHTML = entries.map(e=>{
+    const driveStints = e.stints.filter(s=>s.type==='drive');
+    const pitCount    = e.stints.filter(s=>s.type==='pit').length;
+    const totalRace   = Math.round(e.rSec/60);
+    const nDrivers    = e.drivers.length;
+    const driverNames = e.drivers.map(d=>d.name||'Fører').join(', ');
+
+    // Per-driver stint summary
+    const driverRows = e.drivers.map((d,i)=>{
+      const myStints = driveStints.filter(s=>s.di===i);
+      const totalMin = Math.round(myStints.reduce((a,s)=>a+(s.end-s.start),0)/60);
+      const stintNums = myStints.map(s=>s.sn).join(', ');
+      return '<div style="display:flex;gap:8px;align-items:center;font-size:11px;margin-bottom:3px">'
+        +'<span style="width:8px;height:8px;border-radius:50%;background:'+C[i%C.length]+';display:inline-block;flex-shrink:0"></span>'
+        +'<span style="color:#FFFFFF;min-width:90px">'+(d.name||'Fører '+(i+1))+'</span>'
+        +'<span style="color:#555">'+totalMin+' min</span>'
+        +(stintNums?'<span style="color:#555;margin-left:4px">· stint '+stintNums+'</span>':'')
+        +'</div>';
+    }).join('');
+
+    // Mini timeline
+    const tlW = 300;
+    const tlSegs = e.stints.map(s=>{
+      const l=(s.start/e.rSec*100).toFixed(2);
+      const w=Math.max(0.5,(s.end-s.start)/e.rSec*100).toFixed(2);
+      const col = s.type==='pit'?'#E8002D':(s.di!==undefined?C[s.di%C.length]:'#555');
+      const op = s.type==='pit'?'0.6':'0.85';
+      return '<div style="position:absolute;top:0;height:100%;left:'+l+'%;width:'+w+'%;background:'+col+';opacity:'+op+'"></div>';
+    }).join('');
+
+    return '<div class="logg-item">'
+      +'<div class="logg-item-hd">'
+        +'<div>'
+          +'<div class="logg-item-name">📋 '+e.name+'</div>'
+          +'<div class="logg-item-meta">'+e.mode+' · '+totalRace+' min · '+nDrivers+' førere · '+pitCount+' pitstop</div>'
+        +'</div>'
+        +'<div class="logg-item-actions">'
+          +'<button class="btn pr" style="font-size:11px;padding:5px 10px" onclick="loadStrategy('+e.id+')">Last inn</button>'
+          +'<button class="btn dn" style="font-size:11px;padding:5px 10px" onclick="deleteLoggEntry('+e.id+')">Slett</button>'
+        +'</div>'
+      +'</div>'
+      +'<div style="position:relative;height:14px;background:#111;border-radius:4px;overflow:hidden;margin-bottom:.6rem;border:1px solid #2A2A2A">'
+        +tlSegs
+      +'</div>'
+      +'<div class="logg-detail">'+driverRows+'</div>'
+    +'</div>';
   }).join('');
 }
 

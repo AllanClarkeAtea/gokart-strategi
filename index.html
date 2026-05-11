@@ -384,6 +384,8 @@ tr:hover td{background:#1A1A1A}
         <th style="width:40px">Tid</th><th style="width:48px">Runder</th>
         <th style="width:58px;color:#C9A84C">⚑ Skilt</th>
         <th style="width:70px">Status</th>
+        <th style="width:68px;color:#C0C0C0">Fakt. runder</th>
+        <th style="width:60px;color:#C0C0C0">Avvik</th>
       </tr></thead>
       <tbody id="liveTbl"></tbody>
     </table>
@@ -429,6 +431,7 @@ const C=['#E8002D','#C9A84C','#39D353','#4FC3F7','#FF6E40','#B39DDB','#80DEEA','
 let mode='boost', dcnt=4, drivers=[], stints=[];
 let rSec=7200, minP=7, pitSec=50, boostW=[];
 let lRun=false, lElap=0, lTimer=null, lStints=[], elog=[];
+let actualLaps={}; // keyed by stint sn: user-entered actual lap count
 let kA=null, kB=null, lastBI=10, lastBD=60;
 
 const MIN_S   = 7*60;
@@ -650,7 +653,7 @@ function assignTimes(seq, t0, pitsDone, dT, snStart){
     if(sl<=0) sl=Math.min(MIN_S,tR);
 
     const end=Math.min(clk+sl,rSec), sgT=sgAt(end), bc=boostW.filter(([a])=>a>=clk&&a<end).length;
-    res.push({type:'drive',di,name:drivers[di].name||('F\u00f8rer '+(di+1)),start:clk,end,col:C[di%C.length],lT,signAt:sgT,status:'future',aStart:null,rep:false,sn,bc});
+    res.push({type:'drive',di,name:drivers[di].name||('F\u00f8rer '+(di+1)),start:clk,end,col:C[di%C.length],lT,signAt:sgT,status:'future',aStart:null,rep:false,sn,bc,plannedRounds:Math.floor((end-clk)/lT)});
     acc[di]+=(end-clk); clk=end; sn++;
     if(clk>=rSec) break;
 
@@ -822,6 +825,7 @@ function replanKeepOrder(fromLIdx, newStart){
       s.signAt=s.end-SIGN_B;
       s.bc=boostW.filter(([a])=>a>=s.start&&a<s.end).length;
       s.rep=true;
+      s.plannedRounds=Math.floor((s.end-s.start)/(s.lT||40)); // update planned rounds
       clk=s.end;
       if(clk>=rSec) break;
     }
@@ -876,21 +880,49 @@ function stintRow(s, sn, live){
       +'<td>'+fm(s.start)+'</td><td>'+fm(s.end)+'</td><td>'+Math.round(pitSec/60)+'m</td>'
       +'<td></td>'
       +'<td class="sign-td">\u26d1 '+fm(sgT)+'</td>'
-      +'<td><span class="badge '+cl+'">'+lb+'</span></td></tr>';
+      +'<td><span class="badge '+cl+'">'+lb+'</span></td><td></td><td></td></tr>';
   }
-  const dur=s.end-s.start, rn=Math.floor(dur/(s.lT||40));
+  const dur=s.end-s.start;
+  // Use stored plannedRounds (static from strategy) when available;
+  // only recalculate if not yet set (e.g. setup tab preview)
+  const rn = (live && s.plannedRounds !== undefined)
+    ? s.plannedRounds
+    : Math.floor(dur/(s.lT||40));
   const cl=live?(s.status==='done'?'bd':s.status==='active'?'ba':'bf'):'bf';
   const lb=live?(s.status==='done'?'Ferdig':s.status==='active'?'Kj\u00f8rer':'Plan'):'Plan';
   const ri=s.rep?'<span class="badge br" style="margin-left:3px">R</span>':'';
   const bt=s.bc?('<span class="badge bbo" style="margin-left:3px">\u26a1'+s.bc+'</span>'):'';
+  // Actual laps cell: editable input for done stints, empty for future/active
+  let actualCell='<td></td><td></td>';
+  if(live){
+    const actVal = (typeof actualLaps !== 'undefined' && actualLaps[s.sn] !== undefined)
+      ? actualLaps[s.sn] : '';
+    if(s.status==='done'){
+      // Show input for completed stints
+      const dev = actVal!=='' ? (actVal - rn) : '';
+      const devColor = dev===''?'#555':(dev>0?'#39D353':(dev<0?'#E8002D':'#C0C0C0'));
+      const devStr  = dev===''?'–':(dev>0?'+'+dev:String(dev));
+      actualCell = '<td><input type="number" value="'+actVal+'" min="0" max="999"'
+        +' style="width:58px;height:26px;padding:0 4px;font-size:11px;font-variant-numeric:tabular-nums;'
+        +'border:1px solid #2A2A2A;border-radius:4px;background:#1E1E1E;color:#fff;text-align:center"'
+        +' onchange="setActualLaps('+s.sn+',this.value)"'
+        +' onclick="event.stopPropagation()"'
+        +' aria-label="Faktisk antall runder for stint '+s.sn+'"></td>'
+        +'<td style="color:'+devColor+';font-weight:700;font-size:12px;text-align:center">'+devStr+'</td>';
+    } else {
+      // Active or future: show planned only, no input yet
+      actualCell = '<td style="color:#555;font-size:11px;text-align:center">–</td>'
+                 +'<td style="color:#555;font-size:11px;text-align:center">–</td>';
+    }
+  }
   return '<tr style="'+(live&&s.status==='done'?'opacity:.4':'')+'"><td style="font-size:10px;color:#555;font-weight:700">'+sn+'</td>'
     +'<td>'+kB2(s.sn)+'</td>'
     +'<td><span style="display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap"><span style="width:8px;height:8px;border-radius:50%;background:'+s.col+';display:inline-block;flex-shrink:0"></span><span style="color:#fff">'+s.name+'</span>'+ri+bt+'</span></td>'
     +'<td>'+fm(s.start)+'</td><td>'+fm(s.end)+'</td><td>'+Math.round(dur/60)+'m</td>'
     +'<td style="color:#fff">~'+rn+'<span style="font-size:10px;color:#555"> ('+fmL(s.lT||40)+'s)</span></td>'
     +'<td class="sign-td">\u26d1 '+fm(sgT)+'</td>'
-    +'<td><span class="badge '+cl+'">'+lb+'</span></td></tr>';
-  // No secondary "Pit inn"-row – pit info is shown in the pit-type row itself
+    +'<td><span class="badge '+cl+'">'+lb+'</span></td>'
+    +actualCell+'</tr>';
 }
 
 // ── Tidslinje ─────────────────────────────────────────────────
@@ -1027,6 +1059,7 @@ function pitNaa(){
   nds.end=Math.min(t+idealSl, rSec);
   nds.signAt=sgAt(nds.end);
   nds.bc=boostW.filter(([a])=>a>=t&&a<nds.end).length;
+  nds.plannedRounds=Math.floor((nds.end-t)/(nds.lT||40));
 
   // Steg 5: retune alle fremtidige stints (behold rekkefølge, juster kun tider)
   // Find the first future stint after the newly activated drive stint
@@ -1063,6 +1096,7 @@ function goLive(){
   const firstDrive=lStints.find(s=>s.type==='drive');
   if(firstDrive){firstDrive.status='active';firstDrive.aStart=0;}
   lRun=false; lElap=0; elog=[]; clearInterval(lTimer); lTimer=null;
+  actualLaps={};
   lStartWallTime=null; lElapsedAtStart=0; clearState(); _lastNxtDi=-1;
   document.getElementById('lMBadge').textContent=mlbl();
   document.getElementById('lBSum').textContent=bsum();
@@ -1158,6 +1192,16 @@ function rndrNextAct(){
     +'<div style="font-size:11px;color:#555">'+lStints.filter(s=>s.type==='pit'&&s.status==='future').length+' pitstop igjen</div>'
     +'</div>';
   h+='</div>'; document.getElementById('nextAct').innerHTML=h;
+}
+
+function setActualLaps(sn, val){
+  const n = parseInt(val);
+  if(!isNaN(n) && n >= 0){
+    actualLaps[sn] = n;
+  } else {
+    delete actualLaps[sn];
+  }
+  rndrLive(); // re-render to update deviation column
 }
 
 function rndrLive(){

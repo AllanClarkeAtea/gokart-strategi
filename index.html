@@ -356,19 +356,19 @@ tr:hover td{background:#1A1A1A}
   <div class="card">
     <h2 class="sec">Live-justeringer</h2>
     <div class="rbox">
+      <div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🔀 Bytt neste fører</div>
       <div class="rrow">
-        <span class="lsm">🔀 Bytt neste fører:</span>
         <select id="nxtDrv" style="flex:1;min-width:130px" aria-label="Velg ny fører for neste stint"></select>
-        <button class="btn pr" onclick="doBytt()">Bytt</button>
+        <button class="btn pr" onclick="doBytt()">Bytt, og juster plan</button>
       </div>
       <div id="byttInfo" style="font-size:11px;color:#555;margin-top:6px;line-height:1.5"></div>
     </div>
     <div class="rbox">
+      <div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🏁 Registrer pit-bytte</div>
       <div class="rrow">
-        <span class="lsm">🔧 Taktisk pit nå:</span>
-        <button class="btn dn" onclick="ePit()">⚠ Pit nå og replanlegg</button>
+        <button class="btn pr" style="background:#1A0E00;color:#C9A84C;border-color:#C9A84C" onclick="pitNaa()">Pit nå</button>
       </div>
-      <div style="font-size:11px;color:#555;margin-top:6px">Rekkefølgen beholdes – kun stinttider justeres.</div>
+      <div style="font-size:11px;color:#555;margin-top:6px;line-height:1.5">Trykk når neste fører kjører ut fra pit. Registrerer faktisk byttetidspunkt og oppdaterer gjenværende stints – alle regler overholdes.</div>
     </div>
   </div>
 
@@ -586,8 +586,8 @@ function stintRow(s,sn,live){
     </tr>`;
   }
   const dur=s.end-s.start,rn=Math.floor(dur/(s.lT||40));
-  const cl=live?(s.status==='done'?'bd':s.status==='active'?'ba':s.status==='next'?'bn':'bf'):'bf';
-  const lb=live?(s.status==='done'?'Ferdig':s.status==='active'?'Kjører':s.status==='next'?'Neste':'Plan'):'Plan';
+  const cl=live?(s.status==='done'?'bd':s.status==='active'?'ba':'bf'):'bf';
+  const lb=live?(s.status==='done'?'Ferdig':s.status==='active'?'Kjører':'Plan'):'Plan';
   const ri=s.rep?`<span class="badge br" style="margin-left:3px">R</span>`:'';
   const bt=s.bc?`<span class="badge bbo" style="margin-left:3px">⚡${s.bc}</span>`:'';
   return`<tr style="${live&&s.status==='done'?'opacity:.4':''}">
@@ -630,6 +630,8 @@ function rndrSetup(arr){
 }
 
 // ── Live ──────────────────────────────────────────────────
+
+// Accumulated drive time per driver (done + fraction of active)
 function getDT(){
   const dt=drivers.map(()=>0);
   lStints.filter(s=>s.type==='drive'&&s.status==='done').forEach(s=>dt[s.di]+=(s.end-s.start));
@@ -638,56 +640,217 @@ function getDT(){
   return dt;
 }
 
-function nextPlanned(){return lStints.find(s=>s.type==='drive'&&s.status==='future');}
-
-function updSel(){
-  const nxt=nextPlanned();const sel=document.getElementById('nxtDrv');
-  if(!nxt){sel.innerHTML='<option>Ingen gjenværende stints</option>';document.getElementById('byttInfo').textContent='Ingen gjenværende stints.';return;}
-  sel.innerHTML=drivers.map((d,i)=>`<option value="${i}" ${i===nxt.di?'selected':''}>${d.name||`Fører ${i+1}`}${i===nxt.di?' ← planlagt':''}</option>`).join('');
-  document.getElementById('byttInfo').textContent=`Planlagt for stint ${nxt.sn}: ${nxt.name}. Velg en annen og trykk Bytt – rekkefølgen for øvrige stints beholdes.`;
-}
-
-function doBytt(){
-  const di=+document.getElementById('nxtDrv').value;const nxt=nextPlanned();if(!nxt)return;
-  if(di===nxt.di){ann('Fører er allerede planlagt.');return;}
-  const d=drivers[di];const idx=lStints.indexOf(nxt);
-  nxt.di=di;nxt.name=d.name||`Fører ${di+1}`;nxt.col=C[di%C.length];nxt.lT=d.lt;nxt.rep=true;
-  const futIdx=lStints.findIndex((s,i)=>i>idx&&s.status==='future');
-  if(futIdx>=0)replanKeepOrder(futIdx,nxt.end);
-  const msg=`${fm(lElap)} – Stint ${nxt.sn} byttet til ${d.name||`Fører ${di+1}`}`;
-  addLog(msg);ann(msg);updSel();rndrAll();
-}
-
-function ePit(){
-  const t=lElap;const ai=lStints.findIndex(s=>s.type==='drive'&&s.status==='active');
-  if(ai>=0){lStints[ai].status='done';lStints[ai].end=t;}
-  const avgLap=drivers.reduce((a,d)=>a+d.lt,0)/drivers.length||40;
-  const{ps,pe}=vPit(t,pitSec,WU*avgLap);
-  const pD=lStints.filter(s=>s.type==='pit'&&(s.status==='done'||s.status==='active')).length;
-  const np={type:'pit',start:ps,end:Math.min(pe,rSec),num:pD+1,status:'active',rep:true};
-  const ins=ai>=0?ai+1:lStints.length;lStints.splice(ins,0,np);
-  const futIdx=lStints.findIndex(s=>s.status==='future');
-  if(futIdx>=0)replanKeepOrder(futIdx,np.end);
-  else if(rSec-np.end>MIN_S){
-    const dt=getDT();const best=drivers.map((d,i)=>({i,t:dt[i]})).sort((a,b)=>a.t-b.t);
-    const act2=lStints.find(s=>s.type==='drive'&&s.status==='active');const last2=act2?act2.di:-1;
-    const pick=(best.find(x=>x.i!==last2)||best[0]);
-    const dc=lStints.filter(s=>s.type==='drive'&&(s.status==='done'||s.status==='active')).length;
-    const{stints:tail}=assignTimes([pick.i],np.end,pD+1,dt,dc+1);tail.forEach(s=>{s.rep=true;});lStints.push(...tail);
+// The NEXT planned drive stint (first future drive after current active)
+function nextPlanned(){
+  // Find the currently active drive stint index
+  const actIdx=lStints.findIndex(s=>s.type==='drive'&&s.status==='active');
+  if(actIdx>=0){
+    // Find the next future drive stint after the active one
+    for(let i=actIdx+1;i<lStints.length;i++){
+      if(lStints[i].type==='drive'&&lStints[i].status==='future')return lStints[i];
+    }
+    return null;
   }
-  shAlert(`Taktisk pit kl. ${fm(t)}.${ps>t?` Pit utsatt til ${fm(ps)} pga. boost.`:''}`);
-  updSel();rndrAll();
+  // No active stint – return first future drive
+  return lStints.find(s=>s.type==='drive'&&s.status==='future')||null;
+}
+
+// Track last planned driver to avoid rebuilding dropdown on every tick
+let _lastNxtDi=-1;
+
+// updSel(force):
+//   force=true  => rebuild fully and reset to planned driver (use after Pit naa/Bytt)
+//   force=false => only rebuild if planned driver changed; preserve user's selection otherwise
+function updSel(force){
+  const nxt=nextPlanned();
+  const sel=document.getElementById('nxtDrv');
+  const infoEl=document.getElementById('byttInfo');
+  if(!nxt){
+    sel.innerHTML='<option>Ingen gjenværende stints</option>';
+    if(infoEl)infoEl.textContent='Ingen gjenværende stints aa bytte.';
+    _lastNxtDi=-1;
+    return;
+  }
+  // Rebuild option list only when planned driver changed, or when forced
+  if(force || nxt.di!==_lastNxtDi){
+    // Remember what the user had selected before we rebuild
+    const prevVal=force ? nxt.di : +sel.value;
+    _lastNxtDi=nxt.di;
+    sel.innerHTML=drivers.map((d,i)=>
+      `<option value="${i}">${d.name||`Foerer ${i+1}`}${i===nxt.di?' <- planlagt':''}</option>`
+    ).join('');
+    // Restore user selection (or fall back to planned driver)
+    const vals=[...sel.options].map(o=>+o.value);
+    sel.value=vals.includes(prevVal) ? prevVal : nxt.di;
+  }
+  if(infoEl)infoEl.textContent=`Planlagt for stint ${nxt.sn}: ${nxt.name}. Velg en annen foerer og trykk "Bytt, og juster plan" for aa endre.`;
+}
+
+// ── "Bytt, og juster plan" ────────────────────────────────
+// Swaps the driver for the next planned stint and rebuilds
+// the rest of the plan while respecting ALL race rules:
+//   - No driver twice in a row
+//   - Min/max stint duration (7–20 min)
+//   - Boost windows avoided at pit
+//   - Equal total drive time
+function doBytt(){
+  const di=+document.getElementById('nxtDrv').value;
+  const nxt=nextPlanned();
+  if(!nxt)return;
+
+  const d=drivers[di];
+  const act=lStints.find(s=>s.type==='drive'&&s.status==='active');
+
+  // Rule: new driver cannot be same as currently active driver
+  if(act&&act.di===di){
+    alert(`${d.name||`Fører ${di+1}`} kjører allerede aktivt stint. Kan ikke sette samme fører to ganger på rad.`);
+    return;
+  }
+  // Rule: new driver cannot be same as the stint immediately before nxt
+  const nxtIdx=lStints.indexOf(nxt);
+  let prevDrive=null;
+  for(let i=nxtIdx-1;i>=0;i--){if(lStints[i].type==='drive'){prevDrive=lStints[i];break;}}
+  if(prevDrive&&prevDrive.di===di){
+    alert(`${d.name||`Fører ${di+1}`} kjørte nettopp forrige stint. Kan ikke sette samme fører to ganger på rad.`);
+    return;
+  }
+
+  if(di===nxt.di){
+    ann('Fører er allerede planlagt for dette stintet.');
+    return;
+  }
+
+  // Apply the swap
+  nxt.di=di;nxt.name=d.name||`Fører ${di+1}`;nxt.col=C[di%C.length];nxt.lT=d.lt;nxt.rep=true;
+  // Recalculate sign time based on new lap time
+  nxt.signAt=sgAt(nxt.end);
+  nxt.bc=boostW.filter(([a])=>a>=nxt.start&&a<nxt.end).length;
+
+  // Replan all future stints after nxt (keep sequence order, only retune times)
+  const futIdx=lStints.findIndex((s,i)=>i>nxtIdx&&s.status==='future');
+  if(futIdx>=0)replanKeepOrder(futIdx,nxt.end);
+
+  const msg=`${fm(lElap)} – Stint ${nxt.sn}: byttet til ${d.name||`Foerer ${di+1}`}`;
+  addLog(msg);ann(msg);updSel(true);rndrAll();
+}
+
+// ── "Pit naa" ─────────────────────────────────────────────
+// Sequential model:
+//   Drive[N] active  →  press Pit naa
+//   → Drive[N] = done (end = now)
+//   → Pit[N]   = done (the pit between N and N+1, already in plan)
+//   → Drive[N+1] = active (start = now)
+//   → Retune all remaining stints' times
+function pitNaa(){
+  const t=lElap;
+
+  // Step 1: close the currently active drive stint
+  const actIdx=lStints.findIndex(s=>s.type==='drive'&&s.status==='active');
+  if(actIdx<0){
+    ann('Ingen aktiv forer akkurat naa.');
+    return;
+  }
+  lStints[actIdx].status='done';
+  lStints[actIdx].end=t;
+
+  // Step 2: mark the VERY NEXT pit in the list as done (it follows immediately after actIdx)
+  // We look only from actIdx+1 onward and take the first pit we find, regardless of status,
+  // as long as it has not already been done.
+  let pitIdx=-1;
+  for(let i=actIdx+1;i<lStints.length;i++){
+    if(lStints[i].type==='pit'){
+      if(lStints[i].status!=='done'){
+        pitIdx=i;
+        lStints[i].status='done';
+        lStints[i].start=t;
+        lStints[i].end=t+pitSec;
+      }
+      break; // stop at first pit regardless
+    }
+    // If we hit a drive stint before a pit, there's no pit between them (shouldn't happen)
+    if(lStints[i].type==='drive') break;
+  }
+
+  // Step 3: find the next drive stint immediately after the pit we just processed
+  const searchFrom=pitIdx>=0 ? pitIdx : actIdx;
+  let nextDriveIdx=-1;
+  for(let i=searchFrom+1;i<lStints.length;i++){
+    if(lStints[i].type==='drive'&&lStints[i].status==='future'){
+      nextDriveIdx=i;
+      break;
+    }
+  }
+
+  // No next drive stint in plan – check if we need/can add an extra one
+  if(nextDriveIdx<0){
+    const pitsDone=lStints.filter(s=>s.type==='pit'&&s.status==='done').length;
+    const drivesDone=lStints.filter(s=>s.type==='drive'&&s.status==='done').length;
+    // Only add extra if there's enough time remaining
+    if(rSec-t > MIN_S+pitSec){
+      const dt=getDT();
+      const lastDi=lStints[actIdx].di;
+      const best=drivers.map((d,i)=>({i,tt:dt[i]})).sort((a,b)=>a.tt-b.tt);
+      const pick=best.find(x=>x.i!==lastDi)||best[0];
+      const{stints:tail}=assignTimes([pick.i],t,pitsDone,dt,drivesDone+1);
+      tail.forEach(s=>{s.rep=true;});
+      lStints.push(...tail);
+      // Activate the newly added drive stint
+      const newDi=lStints.findIndex(s=>s.type==='drive'&&s.status==='future');
+      if(newDi>=0){
+        lStints[newDi].status='active';
+        lStints[newDi].aStart=t;
+        lStints[newDi].start=t;
+        lStints[newDi].signAt=sgAt(lStints[newDi].end);
+        lStints[newDi].rep=true;
+        const msg2=`${fm(t)} – Pit naa: ${lStints[newDi].name} ut (ekstra stint ${lStints[newDi].sn})`;
+        addLog(msg2);ann(msg2);
+      }
+    } else {
+      addLog(`${fm(t)} – Pit naa registrert. Loepet avsluttes snart.`);
+      ann(`Pit kl. ${fm(t)} – ingen flere stints.`);
+    }
+    updSel(true);rndrAll();
+    return;
+  }
+
+  // Step 4: activate the next drive stint from now
+  const nds=lStints[nextDriveIdx];
+  nds.status='active';
+  nds.aStart=t;
+  nds.start=t;
+  nds.rep=true;
+
+  // Recalculate this stint's end time based on remaining race time, respecting rules
+  const remDrives=lStints.slice(nextDriveIdx+1).filter(s=>s.type==='drive'&&s.status==='future');
+  const remPits=lStints.slice(nextDriveIdx+1).filter(s=>s.type==='pit'&&s.status==='future').length;
+  const totalLeft=1+remDrives.length;
+  const driveTimeLeft=Math.max(0,rSec-t-remPits*pitSec);
+  const idealSl=Math.min(MAX_S,Math.max(MIN_S,Math.round(driveTimeLeft/totalLeft)));
+  nds.end=Math.min(t+idealSl,rSec);
+  nds.signAt=sgAt(nds.end);
+  nds.bc=boostW.filter(([a])=>a>=t&&a<nds.end).length;
+
+  // Step 5: retune all future stints after this one (keep sequence, adjust times only)
+  const afterIdx=lStints.findIndex((s,i)=>i>nextDriveIdx&&s.status==='future');
+  if(afterIdx>=0) replanKeepOrder(afterIdx,nds.end);
+
+  const msg=`${fm(t)} – Pit naa: ${nds.name} ut paa banen (stint ${nds.sn})`;
+  addLog(msg);ann(msg);
+  updSel(true);rndrAll();
+  shAlert(`Pit registrert kl. ${fm(t)}. ${nds.name} kjoerer stint ${nds.sn}.`);
 }
 
 function goLive(){
   lStints=stints.map(s=>({...s,status:'future',aStart:null}));
-  if(lStints[0]?.type==='drive')lStints[0].status='next';
+  // Mark the first drive stint as active (it starts at t=0 when clock starts)
+  const firstDrive=lStints.find(s=>s.type==='drive');
+  if(firstDrive){firstDrive.status='active';firstDrive.aStart=0;}
   lRun=false;lElap=0;elog=[];clearInterval(lTimer);lTimer=null;
   document.getElementById('lMBadge').textContent=mlbl();
   document.getElementById('lBSum').textContent=bsum();
   document.getElementById('lContent').style.display='block';
   document.getElementById('lEmpty').style.display='none';
-  updSel();rndrAll();
+  updSel(true);rndrAll();
   document.querySelectorAll('.tab').forEach(t=>{t.classList.toggle('on',t.dataset.t==='live');t.setAttribute('aria-selected',t.dataset.t==='live'?'true':'false');});
   document.querySelectorAll('.tc').forEach(t=>t.classList.toggle('on',t.id==='tc-live'));
 }
@@ -716,6 +879,8 @@ function tick(){
   document.getElementById('lRem').textContent=fm(Math.max(0,rSec-lElap));
   document.getElementById('nowL').style.left=(lElap/rSec*100).toFixed(2)+'%';
   chkSign();rndrNextAct();
+  // Only update dropdown if planned driver changed (preserves user selection)
+  updSel(false);
 }
 
 function chkSign(){
@@ -734,8 +899,17 @@ function chkSign(){
 function rndrNextAct(){
   const rem=rSec-lElap;
   const np=lStints.find(s=>s.type==='pit'&&s.status==='future');
-  const nd=lStints.find(s=>s.type==='drive'&&(s.status==='future'||s.status==='next'));
   const act=lStints.find(s=>s.type==='drive'&&s.status==='active');
+  // "Neste fører" = the first future drive stint AFTER the currently active one
+  const actIdx=lStints.findIndex(s=>s.type==='drive'&&s.status==='active');
+  let nd=null;
+  if(actIdx>=0){
+    for(let i=actIdx+1;i<lStints.length;i++){
+      if(lStints[i].type==='drive'&&lStints[i].status==='future'){nd=lStints[i];break;}
+    }
+  }else{
+    nd=lStints.find(s=>s.type==='drive'&&(s.status==='future'||s.status==='next'))||null;
+  }
   let h='<div style="display:flex;gap:8px;flex-wrap:wrap">';
   if(act){
     const sit=lElap-(act.aStart||act.start),sgT=sgAt(act.end),sinIn=Math.max(0,sgT-lElap),kn=kNr(act.sn),nb=nextB(lElap);

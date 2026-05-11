@@ -356,19 +356,10 @@ tr:hover td{background:#1A1A1A}
   <div class="card">
     <h2 class="sec">Live-justeringer</h2>
     <div class="rbox">
-      <div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🔀 Bytt neste fører</div>
       <div class="rrow">
-        <select id="nxtDrv" style="flex:1;min-width:130px" aria-label="Velg ny fører for neste stint"></select>
-        <button class="btn pr" onclick="doBytt()">Bytt, og juster plan</button>
+        <button class="btn pr" style="background:#1A0E00;color:#C9A84C;border-color:#C9A84C;font-size:14px;font-weight:700;padding:10px 20px" onclick="pitNaa()">🏁 Pit nå</button>
+        <div style="font-size:11px;color:#555;line-height:1.5">Trykk når neste fører kjører ut fra pit. Klokketidspunktet registreres og gjenværende stints rebalanseres med alle regler gjeldende.</div>
       </div>
-      <div id="byttInfo" style="font-size:11px;color:#555;margin-top:6px;line-height:1.5"></div>
-    </div>
-    <div class="rbox">
-      <div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🏁 Registrer pit-bytte</div>
-      <div class="rrow">
-        <button class="btn pr" style="background:#1A0E00;color:#C9A84C;border-color:#C9A84C" onclick="pitNaa()">Pit nå</button>
-      </div>
-      <div style="font-size:11px;color:#555;margin-top:6px;line-height:1.5">Trykk når neste fører kjører ut fra pit. Registrerer faktisk byttetidspunkt og oppdaterer gjenværende stints – alle regler overholdes.</div>
     </div>
   </div>
 
@@ -582,7 +573,9 @@ function buildSeq(nS, dT){
 function assignTimes(seq, t0, pitsDone, dT, snStart){
   const tgtPits=Math.max(0,minP-pitsDone);
   const res=[]; let clk=t0; const acc=dT.slice(); let pd=0, sn=snStart||1;
-  const tgtPD=(rSec-t0-tgtPits*pitSec)/drivers.length;
+  // Target equal drive time per driver over the whole race
+  const totalPitTime=Math.max(tgtPits,minP)*pitSec;
+  const tgtPD=Math.round((rSec-t0-totalPitTime)/drivers.length);
 
   for(let s=0;s<seq.length;s++){
     const di=seq[s], d=drivers[di], lT=d.lt;
@@ -590,7 +583,17 @@ function assignTimes(seq, t0, pitsDone, dT, snStart){
     const tR=rSec-clk, dR=tR-pL2*pitSec;
     const dSA=seq.slice(s+1).filter(x=>x===di).length;
     const dD=tgtPD-acc[di], dSL=1+dSA;
-    let sl=Math.round((dD/dSL)*0.7+(dR/sR)*0.3);
+    // Multi-stint drivers (dSL>1) absorb imbalance by going closer to MAX_S.
+    // Single-stint remaining: just give them their exact deficit.
+    let sl;
+    if(dSL>1){
+      // Give a larger share now so each stint stays near equal-share
+      const baseShare=Math.round(dD/dSL);
+      const pushedHigh=Math.min(MAX_S, Math.round(dD*0.6));
+      sl=Math.round(pushedHigh*0.7+(dR/sR)*0.3);
+    } else {
+      sl=Math.round(dD*0.8+(dR/sR)*0.2);
+    }
     sl=clampStint(di, sl, acc);
     sl=Math.max(MIN_S, sl);
     const rv=pL2*(pitSec+MIN_S);
@@ -626,6 +629,14 @@ function assignTimes(seq, t0, pitsDone, dT, snStart){
       res.push({type:'pit',start:ps,end:ae,num:pitsDone+pd,status:'future',rep:false});
       clk=ae; if(clk>=rSec) break;
     }
+  }
+  // Extend the very last drive stint to exactly rSec so the race
+  // always ends at the configured duration (e.g. 120:00).
+  const lastDrive = [...res].reverse().find(s=>s.type==='drive');
+  if(lastDrive && lastDrive.end < rSec){
+    lastDrive.end = rSec;
+    lastDrive.signAt = lastDrive.end - SIGN_B;
+    lastDrive.bc = boostW.filter(([a])=>a>=lastDrive.start&&a<lastDrive.end).length;
   }
   return{stints:res, finalDT:acc};
 }
@@ -672,17 +683,104 @@ function enforceRules(plan, t0, pitsDone, dT){
 }
 
 // replanKeepOrder: behold rekkefølge på fører, juster kun tider
+// replanKeepOrder: retimes EXISTING future stints without adding/removing any.
+// Core principle: all drivers should end up with equal total drive time.
+// Drivers with 2+ stints absorb imbalance by driving closer to MAX_S.
+// Drivers with 1 stint get their fair share. Never breaks MAX_S or MAX_TOT.
 function replanKeepOrder(fromLIdx, newStart){
-  const futSeq=lStints.slice(fromLIdx).filter(s=>s.type==='drive').map(s=>s.di);
-  if(!futSeq.length) return;
-  const pD=lStints.filter(s=>s.type==='pit'&&(s.status==='done'||s.status==='active')).length;
-  const dt=getDT();
-  const dc=lStints.filter(s=>s.type==='drive'&&(s.status==='done'||s.status==='active')).length;
-  const{stints:tail}=buildStrat(newStart,pD,dt,dc+1);
-  tail.forEach(s=>{ s.rep=true; });
-  const si=lStints.findIndex((s,i)=>i>=fromLIdx&&s.status==='future');
-  if(si>=0) lStints.splice(si);
-  lStints.push(...tail);
+  // Collect future drive stints (indices into lStints) in order
+  const futDriveIdxs=[];
+  for(let i=fromLIdx;i<lStints.length;i++){
+    if(lStints[i].type==='drive'&&lStints[i].status==='future') futDriveIdxs.push(i);
+  }
+  if(!futDriveIdxs.length) return;
+
+  const nDrives=futDriveIdxs.length;
+  const futPits=lStints.slice(fromLIdx).filter(s=>s.type==='pit'&&s.status==='future').length;
+  const totalDriveAvail=Math.max(0, rSec - newStart - futPits*pitSec);
+
+  // Current accumulated drive time per driver (done + active)
+  const dtNow=getDT();
+
+  // How many more future stints does each driver have?
+  const futureStintCount=drivers.map(()=>0);
+  futDriveIdxs.forEach(idx=>{ futureStintCount[lStints[idx].di]++; });
+
+  // Target: all drivers finish with equal total drive time over the full race.
+  // Equal share = totalRaceTime / nDrivers (minus all pit time).
+  const totalRaceDrive=rSec - lStints.filter(s=>s.type==='pit').length*pitSec;
+  const equalShare=Math.round(totalRaceDrive/drivers.length);
+
+  // Calculate ideal allocation for each future stint.
+  // Strategy: driver's deficit = equalShare - dtNow[di]
+  // Spread that deficit evenly across their remaining future stints.
+  // Drivers with 2 stints get up to MAX_S each; drivers with 1 get their exact deficit.
+  const dtTemp=dtNow.slice();
+  const allocations=futDriveIdxs.map((idx,k)=>{
+    const di=lStints[idx].di;
+    const remainingStints=futureStintCount[di]; // stints left for this driver including this one
+    const deficit=Math.max(0, equalShare - dtTemp[di]);
+    // Give this stint: deficit / remainingStints, nudged toward MAX_S for multi-stint drivers
+    let ideal=Math.round(deficit / remainingStints);
+    // If driver has multiple future stints, prefer giving MORE now (closer to MAX_S)
+    // so their remaining stint can also be near equal share
+    if(remainingStints>1) ideal=Math.min(MAX_S, Math.max(ideal, Math.round(deficit*0.55)));
+    ideal=clampStint(di, ideal, dtTemp);
+    ideal=Math.max(MIN_S, Math.min(MAX_S, ideal));
+    dtTemp[di]+=ideal;
+    futureStintCount[di]--;
+    return ideal;
+  });
+
+  // Scale allocations to exactly fill totalDriveAvail (keep proportions)
+  const allocSum=allocations.reduce((a,b)=>a+b,0);
+  if(allocSum>0 && Math.abs(allocSum-totalDriveAvail)>5){
+    const scale=totalDriveAvail/allocSum;
+    const dtCheck=dtNow.slice();
+    for(let k=0;k<allocations.length;k++){
+      const di=lStints[futDriveIdxs[k]].di;
+      let scaled=Math.round(allocations[k]*scale);
+      scaled=Math.max(MIN_S, Math.min(MAX_S, scaled));
+      // Re-enforce MAX_TOT after scaling
+      scaled=Math.min(scaled, Math.max(0, MAX_TOT-dtCheck[di]));
+      scaled=Math.max(MIN_S, scaled);
+      allocations[k]=scaled;
+      dtCheck[di]+=scaled;
+    }
+    // Give any leftover seconds to the last stint (it goes to rSec anyway)
+    // so total adds up cleanly
+  }
+
+  // Apply allocations: walk lStints from fromLIdx, update start/end/pit times
+  let clk=newStart;
+  let allocIdx=0;
+  for(let i=fromLIdx;i<lStints.length;i++){
+    const s=lStints[i];
+    if(s.type==='pit'&&s.status==='future'){
+      s.start=clk; s.end=clk+pitSec; s.rep=true; clk+=pitSec;
+    } else if(s.type==='drive'&&s.status==='future'){
+      let dur=allocations[allocIdx++];
+      s.start=clk;
+      s.end=Math.min(clk+dur, rSec);
+      s.signAt=s.end-SIGN_B;
+      s.bc=boostW.filter(([a])=>a>=s.start&&a<s.end).length;
+      s.rep=true;
+      clk=s.end;
+      if(clk>=rSec) break;
+    }
+  }
+
+  // Always guarantee the very last drive stint (active or future) ends at rSec
+  const allNonDone=lStints.filter(s=>s.type==='drive'&&(s.status==='active'||s.status==='future'));
+  if(allNonDone.length>0){
+    const ld=allNonDone[allNonDone.length-1];
+    if(ld.end<rSec){
+      ld.end=rSec;
+      ld.signAt=ld.end-SIGN_B;
+      ld.bc=boostW.filter(([a])=>a>=ld.start&&a<ld.end).length;
+      ld.rep=true;
+    }
+  }
 }
 
 function rdUI(){
@@ -715,9 +813,11 @@ function stintRow(s, sn, live){
   if(s.type==='pit'){
     const cl=live?(s.status==='done'?'bd':s.status==='active'?'ba':'bp'):'bp';
     const lb=live?(s.status==='done'?'Ferdig':s.status==='active'?'P\u00e5g\u00e5r':'Plan'):'Pit';
-    return '<tr class="pit-bg"><td><span class="badge '+cl+'">P'+(s.num||'?')+'</span></td><td></td>'
-      +'<td style="color:#C0C0C0;font-size:11px">Pit inn: '+fm(s.start)+'</td>'
-      +'<td colspan="4"></td><td class="sign-td">\u26d1 '+fm(sgT)+'</td>'
+    return '<tr class="pit-bg"><td><span class="badge '+cl+'">P'+(s.num||'?')+'</span></td>'
+      +'<td></td><td style="color:#C0C0C0;font-size:11px;font-style:italic">Pit inn '+fm(s.start)+' → ut '+fm(s.end)+'</td>'
+      +'<td>'+fm(s.start)+'</td><td>'+fm(s.end)+'</td><td>'+Math.round(pitSec/60)+'m</td>'
+      +'<td></td>'
+      +'<td class="sign-td">\u26d1 '+fm(sgT)+'</td>'
       +'<td><span class="badge '+cl+'">'+lb+'</span></td></tr>';
   }
   const dur=s.end-s.start, rn=Math.floor(dur/(s.lT||40));
@@ -732,6 +832,7 @@ function stintRow(s, sn, live){
     +'<td style="color:#fff">~'+rn+'<span style="font-size:10px;color:#555"> ('+fmL(s.lT||40)+'s)</span></td>'
     +'<td class="sign-td">\u26d1 '+fm(sgT)+'</td>'
     +'<td><span class="badge '+cl+'">'+lb+'</span></td></tr>';
+  // No secondary "Pit inn"-row – pit info is shown in the pit-type row itself
 }
 
 // ── Tidslinje ─────────────────────────────────────────────────
@@ -784,29 +885,13 @@ function nextPlanned(){
 }
 
 // ── Dropdown (bevarer brukerens valg mellom ticks) ────────────
+// updSel: removed (Bytt UI no longer in DOM)
 let _lastNxtDi=-1;
-function updSel(force){
-  const nxt=nextPlanned();
-  const sel=document.getElementById('nxtDrv');
-  const infoEl=document.getElementById('byttInfo');
-  if(!nxt){
-    sel.innerHTML='<option>Ingen gjenst\u00e5ende stints</option>';
-    if(infoEl) infoEl.textContent='Ingen gjenst\u00e5ende stints \u00e5 bytte.';
-    _lastNxtDi=-1; return;
-  }
-  if(force||nxt.di!==_lastNxtDi){
-    const prevVal=force?nxt.di:+sel.value;
-    _lastNxtDi=nxt.di;
-    sel.innerHTML=drivers.map((d,i)=>'<option value="'+i+'">'+(d.name||('F\u00f8rer '+(i+1)))+(i===nxt.di?' \u2190 planlagt':'')+'</option>').join('');
-    const vals=[...sel.options].map(o=>+o.value);
-    sel.value=vals.includes(prevVal)?prevVal:nxt.di;
-  }
-  if(infoEl) infoEl.textContent='Planlagt for stint '+nxt.sn+': '+nxt.name+'. Velg annen f\u00f8rer og trykk "Bytt, og juster plan".';
-}
+function updSel(force){ _lastNxtDi=-1; }
 
 // ── Bytt, og juster plan ──────────────────────────────────────
 function doBytt(){
-  const di=+document.getElementById('nxtDrv').value;
+  const di=+null.value;
   const nxt=nextPlanned(); if(!nxt) return;
   const d=drivers[di];
   const act=lStints.find(s=>s.type==='drive'&&s.status==='active');
@@ -861,20 +946,9 @@ function pitNaa(){
   }
 
   if(nextDriveIdx<0){
-    // Sjekk om vi trenger ekstra stint
-    const pitsDone=lStints.filter(s=>s.type==='pit'&&s.status==='done').length;
-    const drivesDone=lStints.filter(s=>s.type==='drive'&&s.status==='done').length;
-    if(rSec-t>MIN_S+pitSec){
-      const dt=getDT();
-      const lastDi=lStints[actIdx].di;
-      const best=drivers.map((d,i)=>({i,tt:dt[i]})).sort((a,b)=>a.tt-b.tt);
-      const pick=best.find(x=>x.i!==lastDi&&dt[x.i]<MAX_TOT)||best[0];
-      const{stints:tail}=buildStrat(t,pitsDone,dt,drivesDone+1);
-      tail.forEach(s=>{s.rep=true;}); lStints.push(...tail);
-      const newDi=lStints.findIndex(s=>s.type==='drive'&&s.status==='future');
-      if(newDi>=0){lStints[newDi].status='active';lStints[newDi].aStart=t;lStints[newDi].start=t;lStints[newDi].signAt=sgAt(lStints[newDi].end);lStints[newDi].rep=true;}
-    }
-    addLog(fm(t)+' \u2013 Pit registrert. L\u00f8pet avsluttes snart.');
+    // No more planned stints after this pit – race ends with current active stint
+    // Just log and return; the active stint will run to rSec
+    addLog(fm(t)+' \u2013 Pit registrert. Siste f\u00f8rer fullforer l\u00f8pet.');
     ann('Pit kl. '+fm(t)+'.');
     updSel(true); rndrAll(); return;
   }
@@ -896,9 +970,29 @@ function pitNaa(){
   nds.signAt=sgAt(nds.end);
   nds.bc=boostW.filter(([a])=>a>=t&&a<nds.end).length;
 
-  // Steg 5: retune alle fremtidige stints (håndhever regler)
+  // Steg 5: retune alle fremtidige stints (behold rekkefølge, juster kun tider)
+  // Find the first future stint after the newly activated drive stint
   const afterIdx=lStints.findIndex((s,i)=>i>nextDriveIdx&&s.status==='future');
-  if(afterIdx>=0) replanKeepOrder(afterIdx, nds.end);
+  if(afterIdx>=0){
+    // There are more stints after this one – retime them all
+    replanKeepOrder(afterIdx, nds.end);
+  } else {
+    // This is the last planned drive stint – stretch to rSec if possible
+    const maxEnd=Math.min(t+MAX_S, rSec);
+    nds.end=maxEnd;
+    nds.signAt=nds.end-SIGN_B;
+    nds.bc=boostW.filter(([a])=>a>=t&&a<nds.end).length;
+  }
+  // Final guarantee: last drive stint ends at rSec (covers active + future)
+  const allNonDone=lStints.filter(s=>s.type==='drive'&&(s.status==='active'||s.status==='future'));
+  if(allNonDone.length>0){
+    const veryLast=allNonDone[allNonDone.length-1];
+    if(veryLast.end<rSec){
+      veryLast.end=rSec;
+      veryLast.signAt=veryLast.end-SIGN_B;
+      veryLast.bc=boostW.filter(([a])=>a>=veryLast.start&&a<veryLast.end).length;
+    }
+  }
 
   const msg=fm(t)+' \u2013 Pit n\u00e5: '+nds.name+' ut p\u00e5 banen (stint '+nds.sn+')';
   addLog(msg); ann(msg); updSel(true); rndrAll();
@@ -1012,7 +1106,10 @@ function rndrLive(){
   let sn=0; const hasR=lStints.some(s=>s.rep&&s.status!=='done');
   document.getElementById('rpNote').style.display=hasR?'flex':'none';
   if(hasR) document.getElementById('rpNoteT').textContent='Replanlagte stints (R): rekkef\u00f8lge beholdt, tider justert iht. regler.';
-  document.getElementById('liveTbl').innerHTML=lStints.map(s=>stintRow(s,s.type==='drive'?++sn:null,true)).join('');
+  // Only show drive stints – pit rows are omitted (pit info visible in Neste hendelser)
+  document.getElementById('liveTbl').innerHTML=lStints
+    .filter(s=>s.type==='drive')
+    .map(s=>stintRow(s,++sn,true)).join('');
 }
 
 function rndrAll(){rndrTL('lTlBar','lTlR','lBBar',lStints,rSec);rndrLive();rndrNextAct();}

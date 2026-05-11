@@ -553,18 +553,39 @@ function clampStint(di, proposed, accDT){
 }
 
 // ── Strategimotor ─────────────────────────────────────────────
-function buildSeq(nS, dT){
+// kartHistory[di] = list of 'odd'|'even' parities this driver has driven
+let kartHistory = {};
+function resetKartHistory(){ kartHistory={}; }
+function recordKart(di, sn){ if(!kartHistory[di])kartHistory[di]=[]; kartHistory[di].push(sn%2===1?'odd':'even'); }
+
+// Penalty: prefer driver who hasn't driven this kart-parity yet
+function kartPenalty(di, stintNum){
+  const parity=stintNum%2===1?'odd':'even';
+  return (kartHistory[di]||[]).filter(p=>p===parity).length;
+}
+
+function buildSeq(nS, dT, startSn){
   const n=drivers.length, tgt=rSec/n;
-  const info=drivers.map((d,i)=>({i, def:tgt-dT[i], sl:0}));
+  const info=drivers.map((d,i)=>({i, def:(tgt-dT[i])+(Math.random()*2-1), sl:0}));
   const base=Math.floor(nS/n), ext=nS%n;
   info.sort((a,b)=>b.def-a.def);
   info.forEach((d,r)=>{ d.sl=base+(r<ext?1:0); });
   const seq=[]; let last=-1;
+  const sn0=startSn||1;
   for(let s=0;s<nS;s++){
-    let c=info.filter(d=>d.sl>0&&d.i!==last);
-    if(!c.length) c=info.filter(d=>d.sl>0);
-    c.sort((a,b)=>b.def-a.def);
-    const p=c[0]; seq.push(p.i); p.sl--; p.def-=tgt/nS; last=p.i;
+    const thisStintNum=sn0+s;
+    let cands=info.filter(d=>d.sl>0&&d.i!==last);
+    if(!cands.length) cands=info.filter(d=>d.sl>0);
+    // Sort: kart-parity preference first (prefer new kart), then deficit
+    cands.sort((a,b)=>{
+      const kDiff=kartPenalty(a.i,thisStintNum)-kartPenalty(b.i,thisStintNum);
+      if(kDiff!==0) return kDiff;
+      return b.def-a.def;
+    });
+    const p=cands[0];
+    seq.push(p.i);
+    recordKart(p.i, thisStintNum);
+    p.sl--; p.def-=tgt/nS; last=p.i;
   }
   return seq;
 }
@@ -644,7 +665,16 @@ function assignTimes(seq, t0, pitsDone, dT, snStart){
 // buildStrat: full plan med regelvalidering
 function buildStrat(t0, pitsDone, dT, snStart){
   const tgtPits=Math.max(0,minP-pitsDone), nS=tgtPits+1;
-  const seq=buildSeq(nS,dT);
+  // Reset kart history for a fresh plan (history is seeded from already-done stints below)
+  resetKartHistory();
+  // Seed history from stints already done in lStints (live mode)
+  if(lStints && lStints.length>0){
+    lStints.filter(s=>s.type==='drive'&&s.status==='done')
+           .forEach(s=>recordKart(s.di, s.sn));
+    const act=lStints.find(s=>s.type==='drive'&&s.status==='active');
+    if(act) recordKart(act.di, act.sn);
+  }
+  const seq=buildSeq(nS,dT,snStart);
   return enforceRules(assignTimes(seq,t0,pitsDone,dT,snStart), t0, pitsDone, dT);
 }
 
@@ -793,6 +823,7 @@ function rdUI(){
 // ── Generer strategi ──────────────────────────────────────────
 function generate(){
   rdUI(); vKart();
+  resetKartHistory(); // fresh plan – clear kart history
   const bad=drivers.filter(d=>isNaN(d.lt)||d.lt<10);
   if(bad.length){alert('Mangler rundetid: '+bad.map((d,i)=>d.name||('F\u00f8rer '+(i+1))).join(', '));return;}
   rSec=+document.getElementById('raceDur').value*60;

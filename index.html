@@ -1,1476 +1,1608 @@
 <!DOCTYPE html>
 <html lang="no">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gokart Strategi</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-html,body{min-height:100vh;background:#0D0D0D;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif}
-body{padding:0;margin:0}
-.wrapper{max-width:680px;margin:0 auto;padding:0 1rem 3rem}
-
-/* Header */
-.hdr{padding:1.1rem 0 .5rem;display:flex;align-items:center;gap:12px;border-bottom:1px solid #2A2A2A;margin-bottom:1rem}
-.hdr-logo{font-size:22px;font-weight:800;color:#E8002D;letter-spacing:-.02em}
-.hdr-logo span{color:#fff}
-.hdr-sub{font-size:11px;color:#555;margin-top:1px}
-
-:focus-visible{outline:3px solid #E8002D;outline-offset:2px;border-radius:4px}
-.card{background:#161616;border:1px solid #2A2A2A;border-radius:10px;padding:.9rem 1.1rem;margin-bottom:.85rem}
-.sec{font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.7rem}
-.fl{font-size:11px;color:#C0C0C0;display:block;margin-bottom:3px}
-input[type=number],input[type=text]{height:33px;padding:0 8px;font-size:13px;border:1px solid #2A2A2A;border-radius:6px;background:#1E1E1E;color:#fff;width:100%}
-input:focus{outline:2px solid #E8002D;outline-offset:1px;border-color:#E8002D}
-input.err{border:2px solid #E8002D;background:#1A0A0A}
-select{height:33px;padding:0 8px;font-size:12px;border:1px solid #2A2A2A;border-radius:6px;background:#1E1E1E;color:#fff;width:100%}
-.row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:9px}
-.row:last-child{margin-bottom:0}
-.field{display:flex;flex-direction:column;flex:1;min-width:95px}
-
-/* Mode buttons */
-.mbtns{display:flex;gap:6px;flex-wrap:wrap}
-.mb{flex:1;min-width:110px;padding:8px;border:1.5px solid #2A2A2A;border-radius:8px;background:#1E1E1E;color:#C0C0C0;font-size:12px;cursor:pointer;text-align:center;line-height:1.4;position:relative;transition:all .15s}
-.mb[aria-pressed=true]{background:#1A0005;border-color:#E8002D;color:#FF6B6B;font-weight:700}
-.mb[aria-pressed=true]::after{content:'✓';position:absolute;top:4px;right:6px;font-size:10px;color:#E8002D}
-.mb .s{font-size:10px;color:#555;font-weight:400;display:block;margin-top:1px}
-
-/* Boost settings */
-.bbox{background:#111;border:1px solid #2A2A2A;border-radius:8px;padding:12px 14px;margin-top:9px}
-.bflds{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
-.bfld{display:flex;flex-direction:column;gap:6px}
-.bfld label{font-size:11px;color:#C0C0C0;font-weight:500;white-space:nowrap}
-.binput-row{display:flex;align-items:center;gap:10px}
-.binput-row input[type=number]{width:64px;height:38px;font-size:16px;font-weight:700;text-align:center;flex-shrink:0}
-.binput-row .ul{font-size:13px;color:#C0C0C0;white-space:nowrap;font-weight:500}
-.bfld .rh{font-size:10px;color:#555}
-
-/* Driver count */
-.dcs{display:flex;gap:6px;margin-bottom:16px}
-.dcb{flex:1;height:44px;border:1.5px solid #2A2A2A;border-radius:8px;background:#1E1E1E;color:#555;font-size:17px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;position:relative}
-.dcb:hover:not(.on){background:#2A2A2A;color:#C0C0C0;border-color:#444}
-.dcb.on{background:#E8002D;color:#fff;border-color:#E8002D;box-shadow:0 0 10px #E8002D44}
-.dcb.on::after{content:'';position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:7px solid #E8002D}
-.kpair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.kslot label{font-size:12px;color:#C0C0C0;display:flex;align-items:center;gap:6px;margin-bottom:5px}
-.knr{width:70px;height:44px;text-align:center;font-size:20px;font-weight:700;border:1.5px solid #2A2A2A;border-radius:8px;background:#1E1E1E;color:#fff}
-.kb{display:inline-flex;align-items:center;justify-content:center;border-radius:5px;font-weight:700;flex-shrink:0;border:1.5px solid}
-.ka{background:#1A0005;color:#FF6B6B;border-color:#E8002D}
-.kbg{background:#1A1000;color:#F5D98B;border-color:#C9A84C}
-.dg{display:grid;grid-template-columns:1fr 105px;gap:7px;align-items:center;margin-bottom:5px}
-.dg.hdr span{font-size:10px;color:#555;font-weight:700}
-
-/* Buttons */
-.gbtn{width:100%;padding:12px;background:#E8002D;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-top:3px;letter-spacing:.02em;transition:background .15s}
-.gbtn:hover{background:#C0001F}
-.btn{padding:6px 12px;border:1.5px solid #2A2A2A;border-radius:6px;background:#1E1E1E;color:#C0C0C0;font-size:12px;cursor:pointer;font-weight:600;white-space:nowrap}
-.btn:hover{background:#2A2A2A}
-.btn.pr{background:#E8002D;color:#fff;border-color:#E8002D}
-.btn.pr:hover{background:#C0001F}
-.btn.dn{background:#1A0005;color:#FF6B6B;border-color:#E8002D}
-
-/* Tabs */
-.tabs{display:flex;border-bottom:1px solid #2A2A2A;margin-bottom:.9rem;gap:2px}
-.tab{padding:8px 14px;font-size:13px;cursor:pointer;color:#555;border-bottom:3px solid transparent;margin-bottom:-1px;font-weight:600;border-radius:4px 4px 0 0;transition:all .15s;background:none;border-left:none;border-right:none;border-top:none}
-.tab.on{color:#E8002D;border-bottom:3px solid #E8002D;font-weight:700}
-.tab:hover:not(.on){color:#C0C0C0;background:#1A1A1A}
-.tc{display:none}.tc.on{display:block}
-
-/* Alerts */
-.al{border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:9px;display:flex;align-items:flex-start;gap:8px;border:1.5px solid}
-.al-w{background:#1A0E00;border-color:#C9A84C;color:#F5D98B}
-.al-i{background:#1A0005;border-color:#E8002D;color:#FF6B6B}
-.al-s{background:#0A1A0A;border-color:#39D353;color:#39D353}
-
-/* Badges */
-.badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700;border:1px solid transparent}
-.bd{background:#0A1A0A;color:#39D353;border-color:#39D353}
-.ba{background:#1A0005;color:#FF6B6B;border-color:#E8002D}
-.bn{background:#1A1000;color:#F5D98B;border-color:#C9A84C}
-.bp{background:#1A0005;color:#FF6B6B;border-color:#E8002D}
-.bf{background:#1E1E1E;color:#555;border-color:#2A2A2A}
-.br{background:#0A0A1A;color:#8B9FFF;border-color:#4455CC}
-.bbo{background:#1A1000;color:#F5D98B;border-color:#C9A84C}
-.bmode{background:#1A0005;color:#FF6B6B;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid #E8002D}
-
-/* Stats */
-.sg{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:.85rem}
-.sc{background:#161616;border:1px solid #2A2A2A;border-radius:8px;padding:9px 10px}
-.sv{font-size:19px;font-weight:700;color:#fff}
-.sl{font-size:10px;color:#555;margin-top:2px}
-
-/* Timeline */
-.tlr{display:flex;justify-content:space-between;font-size:10px;color:#444;margin-bottom:2px}
-.tlw{position:relative;height:50px;background:#111;border-radius:6px;overflow:hidden;border:1px solid #2A2A2A;margin-bottom:3px}
-.tls{position:absolute;top:0;height:100%;display:flex;align-items:center;padding:0 4px;overflow:hidden;white-space:nowrap}
-.bb{position:relative;height:7px;border-radius:4px;background:#111;margin-bottom:7px}
-.bs{position:absolute;height:100%;border-radius:3px;background:#C9A84C;opacity:.8}
-.nl{position:absolute;top:0;width:3px;background:#E8002D;height:50px;z-index:20;pointer-events:none;box-shadow:0 0 8px #E8002D88}
-
-/* Table */
-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
-th{text-align:left;font-size:10px;font-weight:700;color:#555;padding:6px 5px;border-bottom:1px solid #2A2A2A}
-td{padding:6px 5px;border-bottom:1px solid #1E1E1E;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#C0C0C0}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:#1A1A1A}
-.pit-bg{background:#0D0D0D}
-.sign-td{color:#C9A84C;font-weight:700;font-size:11px}
-
-/* Live */
-.lc{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;color:#fff;letter-spacing:.02em}
-.rbox{background:#111;border:1px solid #2A2A2A;border-radius:8px;padding:10px 12px;margin-bottom:9px}
-.rrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
-.rrow:last-child{margin-bottom:0}
-.lsm{font-size:12px;color:#C0C0C0;white-space:nowrap;font-weight:600}
-
-/* Oversikt */
-.dcard{background:#161616;border:1px solid #2A2A2A;border-radius:10px;padding:.85rem 1rem;margin-bottom:.75rem}
-.dcard-hd{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.dcard-nm{font-size:15px;font-weight:700;color:#fff}
-.dcard-tag{font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;border:1.5px solid}
-.dm{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
-.dmi{background:#111;border-radius:8px;padding:8px 10px;border:1px solid #2A2A2A}
-.dmv{font-size:20px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
-.dml{font-size:10px;color:#555;margin-top:2px;font-weight:600}
-.dbw{margin-bottom:4px}
-.dbl{font-size:10px;color:#555;display:flex;justify-content:space-between;margin-bottom:3px}
-.db{height:10px;background:#111;border-radius:5px;overflow:hidden;position:relative;border:1px solid #2A2A2A}
-.dbf{height:100%;border-radius:5px}
-.dba{position:absolute;top:0;height:100%;width:2px;background:#E8002D;opacity:.7}
-.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
-.chip{background:#111;border-radius:6px;padding:6px 10px;font-size:11px;border:1px solid #2A2A2A}
-.chip-t{color:#C0C0C0;font-weight:600;display:block}
-.chip-s{font-size:10px;color:#C9A84C;display:block;margin-top:2px;font-weight:600}
-.ldp{background:#161616;border:1px solid #2A2A2A;border-radius:10px;padding:.75rem .9rem;margin-bottom:.6rem;display:flex;gap:12px;align-items:flex-start}
-.ldp-b{flex:1;min-width:0}
-.ldp-n{font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
-.ldb{height:10px;background:#111;border-radius:5px;overflow:hidden;margin-top:6px;position:relative;border:1px solid #2A2A2A}
-.ldbf{height:100%;border-radius:5px}
-.ldbp{position:absolute;top:0;height:100%;width:2px;background:#C9A84C;opacity:.7}
-
-/* Logg */
-.logg-item{background:#161616;border:1px solid #2A2A2A;border-radius:10px;padding:.85rem 1rem;margin-bottom:.75rem}
-.logg-item-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:8px}
-.logg-item-name{font-size:14px;font-weight:700;color:#FFFFFF}
-.logg-item-meta{font-size:11px;color:#555}
-.logg-item-actions{display:flex;gap:6px}
-.logg-detail{font-size:11px;color:#C0C0C0;margin-bottom:.6rem;line-height:1.6}
-.logg-stints{overflow-x:auto;margin-top:.5rem}
-
-/* Responsive */
-@media(max-width:480px){
-  .sg{grid-template-columns:repeat(2,1fr)}
-  .bflds{gap:12px}
-  .hdr-logo{font-size:18px}
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gokart Strategi – Bedriftsserien</title>
+  <meta name="description" content="Strategi-verktøy for gokart bedriftsserie med sky-synkronisering." />
+  <meta name="theme-color" content="#0a0a0f" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; }
+    body { background: #0a0a0f; font-family: 'Courier New', monospace; color: #F4F4F8; line-height: 1.5; }
+    #root { min-height: 100vh; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: #0a0a0f; }
+    ::-webkit-scrollbar-thumb { background: #4a4a5a; border-radius: 5px; }
+    ::-webkit-scrollbar-thumb:hover { background: #6a6a7a; }
+    button:focus-visible, input:focus-visible, [role="tab"]:focus-visible, a:focus-visible {
+      outline: 3px solid #FFE066 !important; outline-offset: 2px !important; border-radius: 4px;
+    }
+    button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: none; }
+    .skip-link { position:absolute; top:-100px; left:8px; background:#FFE066; color:#000;
+      padding:12px 18px; font-weight:900; text-decoration:none; z-index:9999;
+      border-radius:4px; font-family:'Courier New',monospace; }
+    .skip-link:focus { top:8px; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+      overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    button { transition: opacity 0.15s, transform 0.1s; }
+    button:not(:disabled):hover { opacity: 0.92; }
+    button:active { transform: scale(0.97); }
+    .table-wrap { overflow-x: auto; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration:0.01ms!important;
+        animation-iteration-count:1!important; transition-duration:0.01ms!important; }
+    }
+    @media (prefers-contrast: more) { body { background:#000!important; color:#fff!important; } }
+    @media (pointer: coarse) { button, input[type="number"], input[type="text"] { min-height:44px; } }
+    ::selection { background: #FFE066; color: #000; }
+  </style>
 </head>
 <body>
-<div class="wrapper">
+  <div id="root"></div>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <script type="text/babel" data-presets="react">
+const { useState, useCallback, useEffect } = React;
 
-<header class="hdr">
-  <div>
-    <div class="hdr-logo">🏎 Gokart<span>Strategi</span></div>
-    <div class="hdr-sub">F1 Racing Dark · Løpsplanlegger</div>
-  </div>
-</header>
+// ─── Constants ────────────────────────────────────────────────────────────────
+const RACE_DURATION    = 120;
+const PIT_DURATION_MIN = 50 / 60;
+const MIN_TOTAL_PITS   = 7;            // minimum 7 pit stops = 8 stints
+const MIN_STINT        = 7;            // minutes
+const MAX_STINT        = 20;           // hard rule
+const PIT_BOARD_BEFORE = 1.5;          // show pit board 90 seconds (1.5 min) before planned stint end
+const COLORS = ["#FF6B6B","#FFA94D","#FFE066","#69DB7C","#4DABF7","#DA77F2","#FF8FB3","#7CFFAD"];
 
-<div role="main">
-<div aria-live="polite" aria-atomic="true" class="sr-only" id="lR"></div>
-<div aria-live="assertive" aria-atomic="true" class="sr-only" id="uR"></div>
+// ─── A11y Color Tokens — all meet WCAG AA against #0a0a0f / #111 ────────────
+const TXT_PRIMARY   = "#F4F4F8";  // body text (~16:1 vs #111)
+const TXT_SECONDARY = "#B8B8C4";  // secondary text (~8:1 vs #111)
+const TXT_MUTED     = "#9A9AA8";  // hint/help text (~5.5:1 vs #111) — minimum AA
+const TXT_DISABLED  = "#7A7A88";  // disabled (~3.8:1 vs #111) — large/UI text only
+const COL_DANGER    = "#FF6B6B";  // red for warnings/pit-in
+const COL_WARNING   = "#FFA94D";  // orange for pit-board
+const COL_SUCCESS   = "#69DB7C";  // green for completed/pit-out
+const COL_ACCENT    = "#FFE066";  // yellow for boost/active stint
+const COL_INFO      = "#4DABF7";  // blue for laps
 
-<nav class="tabs" role="tablist">
-  <button class="tab on" role="tab" aria-selected="true" data-t="setup" id="tab-setup" aria-controls="tc-setup">⚙ Oppsett</button>
-  <button class="tab" role="tab" aria-selected="false" data-t="oversikt" id="tab-oversikt" aria-controls="tc-oversikt">📊 Oversikt</button>
-  <button class="tab" role="tab" aria-selected="false" data-t="live" id="tab-live" aria-controls="tc-live">▶ Live</button>
-  <button class="tab" role="tab" aria-selected="false" data-t="logg" id="tab-logg" aria-controls="tc-logg">📋 Logg</button>
-</nav>
-
-<!-- ═══ OPPSETT ═══════════════════════════════════════════ -->
-<div class="tc on" id="tc-setup" role="tabpanel" aria-labelledby="tab-setup">
-<div class="card">
-  <h2 class="sec">Løpsmodus</h2>
-  <div class="mbtns" role="group" aria-label="Løpsmodus">
-    <button class="mb" data-m="speed4" aria-pressed="false">⚡ Standard<span class="s">Uten boost</span></button>
-    <button class="mb" data-m="boost" aria-pressed="true">⚡🔥 Standard + Boost<span class="s">Konfigurerbar</span></button>
-    <button class="mb" data-m="speed5" aria-pressed="false">🚀 Nitro<span class="s">Uten boost</span></button>
-  </div>
-  <div id="bbox" class="bbox">
-    <p style="font-size:11px;font-weight:700;color:#C9A84C;margin-bottom:14px">⚡ Boost-innstillinger</p>
-    <div class="bflds">
-      <div class="bfld">
-        <label for="bi">Boost aktiveres hvert</label>
-        <div class="binput-row">
-          <input type="number" id="bi" min="5" max="30" value="10" aria-describedby="biU">
-          <span class="ul" id="biU">minutter</span>
-        </div>
-        <span class="rh">5 – 30 minutter</span>
-      </div>
-      <div class="bfld">
-        <label for="bd">Boost-varighet</label>
-        <div class="binput-row">
-          <input type="number" id="bd" min="20" max="180" value="60" aria-describedby="bdU">
-          <span class="ul" id="bdU">sekunder</span>
-        </div>
-        <span class="rh">20 – 180 sekunder</span>
-      </div>
-    </div>
-    <div class="al al-i" role="note" style="margin-top:12px;margin-bottom:0"><span>⚡ Pitstop unngår boost. Ny fører sikres 2 oppvarmingsrunder.</span></div>
-  </div>
-</div>
-
-<div class="card">
-  <h2 class="sec">Løpsregler</h2>
-  <div class="row">
-    <div class="field"><label for="raceDur" class="fl">Løpstid (min)</label><input type="number" id="raceDur" value="120" min="30" max="240"></div>
-    <div class="field"><label for="minPits" class="fl">Min. pitstop</label><input type="number" id="minPits" value="7" min="1" max="20"></div>
-    <div class="field"><label for="pitDur" class="fl">Pit-varighet (sek)</label><input type="number" id="pitDur" value="50" min="20" max="180"></div>
-  </div>
-</div>
-
-<div class="card">
-  <h2 class="sec">Kart-numre</h2>
-  <p style="font-size:12px;color:#555;margin-bottom:10px">Kart A = odde stints · Kart B = partall-stints</p>
-  <div class="kpair">
-    <div class="kslot">
-      <label for="kA"><span class="kb ka" style="width:22px;height:22px;font-size:11px" aria-hidden="true">A</span> Kart A</label>
-      <input type="number" id="kA" class="knr" min="1" max="99" oninput="vKart()">
-    </div>
-    <div class="kslot">
-      <label for="kB"><span class="kb kbg" style="width:22px;height:22px;font-size:11px" aria-hidden="true">B</span> Kart B</label>
-      <input type="number" id="kB" class="knr" min="1" max="99" oninput="vKart()">
-    </div>
-  </div>
-  <div id="kErr" style="display:none" class="al al-i" role="alert"><span>⚠ Kart A og B kan ikke ha samme nummer.</span></div>
-</div>
-
-<div class="card">
-  <h2 class="sec">Førere</h2>
-  <p style="font-size:11px;color:#555;font-weight:600;margin-bottom:10px">ANTALL FØRERE</p>
-  <div class="dcs" role="group" aria-label="Antall førere">
-    <button class="dcb" data-n="3" aria-pressed="false">3</button>
-    <button class="dcb on" data-n="4" aria-pressed="true">4</button>
-    <button class="dcb" data-n="5" aria-pressed="false">5</button>
-    <button class="dcb" data-n="6" aria-pressed="false">6</button>
-    <button class="dcb" data-n="7" aria-pressed="false">7</button>
-    <button class="dcb" data-n="8" aria-pressed="false">8</button>
-  </div>
-  <div class="dg hdr" style="margin-top:6px" aria-hidden="true"><span>Navn</span><span>Rundetid (sek, f.eks. 36,1)</span></div>
-  <div id="drvList" role="list"></div>
-</div>
-
-<button class="gbtn" onclick="generate()">🏁 Beregn strategi</button>
-
-<div id="res" style="display:none;margin-top:.85rem">
-  <div class="card">
-    <h2 class="sec">Tidslinje</h2>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap">
-      <span id="mBadge" class="bmode"></span><span id="bSum" style="font-size:11px;color:#555"></span>
-    </div>
-    <div class="tlr" id="tlR" aria-hidden="true"></div>
-    <div id="bBarW" aria-hidden="true"></div>
-    <div class="tlw" id="tlBar" role="img" aria-label="Tidslinje for løpsstrategi"></div>
-  </div>
-  <div class="sg" id="statsG" role="list"></div>
-  <div class="card">
-    <h2 class="sec">Stint-plan</h2>
-    <div style="overflow-x:auto">
-    <table style="min-width:560px" aria-label="Stint-plan">
-      <thead><tr>
-        <th style="width:24px">#</th><th style="width:36px">Kart</th><th>Fører</th>
-        <th style="width:46px">Start</th><th style="width:46px">Slutt</th>
-        <th style="width:40px">Tid</th><th style="width:48px">Runder</th>
-        <th style="width:58px;color:#C9A84C">⚑ Skilt</th>
-        <th style="width:56px">Status</th>
-      </tr></thead>
-      <tbody id="stintTbl"></tbody>
-    </table>
-    </div>
-  </div>
-  <button class="gbtn" style="background:#1A0005;color:#E8002D;border:2px solid #E8002D" onclick="goLive()">▶ Start løp – gå til live</button>
-</div>
-</div>
-
-<!-- ═══ OVERSIKT ══════════════════════════════════════════ -->
-<div class="tc" id="tc-oversikt" role="tabpanel" aria-labelledby="tab-oversikt">
-  <div id="ovrEmpty" style="color:#555;font-size:13px;padding:2rem 0;text-align:center" role="status">
-    <div style="font-size:28px;margin-bottom:8px">📊</div>Beregn en strategi i Oppsett-fanen for å se oversikten.
-  </div>
-  <div id="ovrContent" style="display:none">
-    <div class="card" style="margin-bottom:.6rem">
-      <h2 class="sec">Om oversikten</h2>
-      <p style="font-size:12px;color:#C0C0C0;line-height:1.7">Akkumulerte totaler for hele løpet. Rød strek = snitt. ⚑ Pit-skilt vises 90 sek før pit inn.</p>
-    </div>
-    <div id="ovrLiveSection" style="display:none">
-      <div class="card" style="border:2px solid #E8002D">
-        <h2 class="sec" style="color:#E8002D">▶ Live – kjøretid per fører</h2>
-        <div id="ovrLiveCards" role="list"></div>
-      </div>
-    </div>
-    <div id="ovrCards" role="list"></div>
-    <div class="card">
-      <h2 class="sec">Sammenligning</h2>
-      <table aria-label="Sammenligning per fører">
-        <thead><tr>
-          <th style="width:110px">Fører</th><th style="width:65px;text-align:right">Tid</th>
-          <th style="width:65px;text-align:right">Runder</th><th style="width:55px;text-align:right">Stints</th>
-          <th>Fordeling</th>
-        </tr></thead>
-        <tbody id="ovrTable"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ LIVE ══════════════════════════════════════════════ -->
-<div class="tc" id="tc-live" role="tabpanel" aria-labelledby="tab-live">
-<div id="lEmpty" style="color:#555;font-size:13px;padding:2rem 0;text-align:center" role="status">
-  <div style="font-size:24px;margin-bottom:8px">⚠</div>Beregn en strategi og klikk "Start løp" først.
-</div>
-<div id="lContent" style="display:none">
-  <div class="card">
-    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:11px">
-      <div>
-        <div class="lc" id="lClock">0:00</div>
-        <div style="font-size:11px;color:#555">gått</div>
-      </div>
-      <div style="flex:1;min-width:90px">
-        <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">
-          <span id="lMBadge" class="bmode"></span>
-          <span id="lBSum" style="font-size:11px;color:#555"></span>
-        </div>
-        <div style="font-size:11px;color:#555;margin-bottom:2px">Gjenstående</div>
-        <div style="font-size:15px;font-weight:700;color:#fff" id="lRem">–</div>
-      </div>
-      <div style="display:flex;gap:6px">
-        <button class="btn pr" id="ssBtn" onclick="togClock()"><span id="ssBtnTxt"> Start klokke</span></button>
-        <button class="btn" onclick="rstClock()">↺ Nullstill</button>
-      </div>
-    </div>
-    <div class="tlr" id="lTlR" aria-hidden="true"></div>
-    <div class="tlw" id="lTlBar"><div class="nl" id="nowL" style="left:0"></div></div>
-    <div id="lBBar" aria-hidden="true"></div>
-  </div>
-
-  <div id="psCard" style="display:none" class="al al-w" role="alert" aria-live="assertive">
-    <div>
-      <div style="font-weight:700;font-size:14px;color:#F5D98B" id="psTxt"></div>
-      <div id="psSub" style="margin-top:3px;font-size:12px;color:#C9A84C"></div>
-    </div>
-  </div>
-  <div id="rpAlert" style="display:none" class="al al-i" role="status" aria-live="polite"><div id="rpTxt"></div></div>
-
-  <div class="card"><h2 class="sec">Neste hendelser</h2><div id="nextAct"></div></div>
-
-  <div class="card">
-    <h2 class="sec">Live-justeringer</h2>
-    <div class="rbox">
-      <div class="rrow">
-        <button class="btn pr" style="background:#1A0E00;color:#C9A84C;border-color:#C9A84C;font-size:14px;font-weight:700;padding:10px 20px" onclick="pitNaa()">🏁 Pit nå</button>
-        <div style="font-size:11px;color:#555;line-height:1.5">Trykk når neste fører kjører ut fra pit. Klokketidspunktet registreres og gjenværende stints rebalanseres med alle regler gjeldende.</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2 class="sec">Gjenværende stints</h2>
-    <div id="rpNote" style="display:none" class="al al-i" role="status"><span id="rpNoteT"></span></div>
-    <div style="overflow-x:auto">
-    <table style="min-width:560px" aria-label="Gjenværende stints">
-      <thead><tr>
-        <th style="width:24px">#</th><th style="width:36px">Kart</th><th>Fører</th>
-        <th style="width:46px">Start</th><th style="width:46px">Slutt</th>
-        <th style="width:40px">Tid</th><th style="width:48px">Runder</th>
-        <th style="width:58px;color:#C9A84C">⚑ Skilt</th>
-        <th style="width:70px">Status</th>
-        <th style="width:68px;color:#C0C0C0">Fakt. runder</th>
-        <th style="width:60px;color:#C0C0C0">Avvik</th>
-      </tr></thead>
-      <tbody id="liveTbl"></tbody>
-    </table>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2 class="sec">Hendelseslogg</h2>
-    <div id="logL" style="font-size:12px;color:#555" role="log" aria-live="polite">Ingen hendelser ennå.</div>
-  </div>
-</div>
-</div>
-
-<!-- ═══ LOGG ══════════════════════════════════════════════ -->
-<div class="tc" id="tc-logg" role="tabpanel" aria-labelledby="tab-logg">
-  <div class="card">
-    <h2 class="sec">Lagrede strategier</h2>
-    <p style="font-size:12px;color:#C0C0C0;line-height:1.7;margin-bottom:1rem">
-      Strategier lagres automatisk når du klikker "Lagre strategi". Maks 5 lagrede strategier – den eldste overskrives ved behov.
-    </p>
-    <button class="gbtn" style="margin-bottom:1rem" onclick="saveStrategy()">💾 Lagre gjeldende strategi</button>
-    <div id="loggEmpty" style="color:#555;font-size:13px;padding:1.5rem 0;text-align:center">
-      <div style="font-size:24px;margin-bottom:8px">📋</div>
-      Ingen lagrede strategier ennå. Beregn en strategi og klikk "Lagre gjeldende strategi".
-    </div>
-    <div id="loggList"></div>
-  </div>
-</div>
-
-</div><!-- /main -->
-</div><!-- /wrapper -->
-
-<script>
-// ===================================================================
-// REGLER (aldri endres under løp):
-//   MAX_S   = 20 min per enkelt stint
-//   MAX_TOT = 50 min akkumulert per fører
-//   MIN_S   = 7 min minimum stintvarighet
-//   SIGN_B  = 90 sek – pit-skilt vises 90 sek før pit inn
-//   WU      = 2 runder oppvarming etter pit
-// ===================================================================
-const C=['#E8002D','#C9A84C','#39D353','#4FC3F7','#FF6E40','#B39DDB','#80DEEA','#FFCC02'];
-let mode='boost', dcnt=4, drivers=[], stints=[];
-let rSec=7200, minP=7, pitSec=50, boostW=[];
-let lRun=false, lElap=0, lTimer=null, lStints=[], elog=[];
-let actualLaps={}; // keyed by stint sn: user-entered actual lap count
-let kA=null, kB=null, lastBI=10, lastBD=60;
-
-const MIN_S   = 7*60;
-const MAX_S   = 20*60;
-const MAX_TOT = 50*60;
-const SIGN_B  = 90;
-const WU      = 2;
-
-// ── Dvale-resiliens ───────────────────────────────────────────
-// Lagrer reell klokkestartid slik at klokken kan gjensynkroniseres
-// etter dvale/skjermsparer uten å miste løpsdata.
-let lStartWallTime  = null;
-let lElapsedAtStart = 0;
-
-function saveState(){
-  if(!lRun) return;
-  try{
-    localStorage.setItem('gk_running','1');
-    localStorage.setItem('gk_wallStart', String(lStartWallTime));
-    localStorage.setItem('gk_elapAtStart', String(lElapsedAtStart));
-    localStorage.setItem('gk_rSec', String(rSec));
-  }catch(e){}
-}
-function clearState(){
-  try{['gk_running','gk_wallStart','gk_elapAtStart','gk_rSec'].forEach(k=>localStorage.removeItem(k));}catch(e){}
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function fmt(min) {
+  if (min == null || isNaN(min)) return "--:--";
+  const sign = min < 0 ? "-" : "";
+  const abs  = Math.abs(min);
+  const m    = Math.floor(abs);
+  const s    = Math.round((abs - m) * 60);
+  return `${sign}${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
 }
 
-// Kalt når nettleserfanen blir synlig igjen (skjerm våkner)
-function resyncFromWall(){
-  if(!lRun || !lStartWallTime) return;
-  const realElapsed = Math.floor((Date.now() - lStartWallTime)/1000) + lElapsedAtStart;
-  const capped = Math.min(realElapsed, rSec);
-  if(capped > lElap + 2){
-    lElap = capped;
-    fastForwardStints(lElap);
-    tick();
-    addLog(fm(lElap) + ' – Klokke gjensynkronisert etter dvale');
-    shAlert('Klokke gjensynkronisert etter dvale. Sjekk gjenvaerende stints.');
+function getBoostWindows(mode, boostInterval = 10, boostDuration = 1) {
+  if (mode !== "boost") return [];
+  const w = [];
+  for (let t = boostInterval; t < RACE_DURATION; t += boostInterval)
+    w.push({ start: t, end: t + boostDuration });
+  return w;
+}
+
+function shiftPastBoost(pitEntry, windows, lapTimeSec) {
+  const warmup = (lapTimeSec / 60) * 2;
+  for (const bw of windows) {
+    const avoidFrom = bw.start - warmup - PIT_DURATION_MIN;
+    const avoidTo   = bw.end;
+    if (pitEntry > avoidFrom && pitEntry < avoidTo) pitEntry = avoidTo + 0.05;
   }
+  return pitEntry;
 }
 
-document.addEventListener('visibilitychange', ()=>{
-  if(document.visibilityState==='visible' && lRun) resyncFromWall();
-});
-
-// Oppdater stilte stints basert på faktisk tid etter resync
-function fastForwardStints(nowSec){
-  lStints.forEach(s=>{
-    if(s.type==='drive' && s.status==='active' && s.end<=nowSec){ s.status='done'; }
-    if(s.type==='pit'   && s.status!=='done'    && s.end<=nowSec){ s.status='done'; }
-    if(s.type==='drive' && s.status==='future'  && s.end<=nowSec){ s.status='done'; }
-  });
-  const hasActive=lStints.some(s=>s.type==='drive'&&s.status==='active');
-  if(!hasActive){
-    const nxt=lStints.find(s=>s.type==='drive'&&s.status==='future'&&s.start<=nowSec);
-    if(nxt){ nxt.status='active'; nxt.aStart=nxt.start; }
-  }
+function inBoostWindow(pitEntry, windows) {
+  return windows.some(bw => pitEntry >= bw.start && pitEntry <= bw.end);
 }
 
-// ── Hjelpefunksjoner ──────────────────────────────────────────
-function ann(m,u){const e=document.getElementById(u?'uR':'lR');e.textContent='';requestAnimationFrame(()=>e.textContent=m);}
-function pL(v){if(!v||!v.trim())return NaN;const n=parseFloat(v.replace(',','.'));return(isNaN(n)||n<10||n>200)?NaN:n;}
-function fm(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+(s%60).toString().padStart(2,'0');}
-function fmS(s){const m=Math.floor(s/60),sec=Math.round(s%60);return sec===0?m+' min':m+'m '+sec+'s';}
-function fmL(s){return(Math.round(s*10)/10).toFixed(1).replace('.',',');}
-function mlbl(){return mode==='speed4'?'Standard':mode==='boost'?'Standard + Boost':'Nitro';}
-function bsum(){return mode==='boost'?('Boost hvert '+lastBI+' min \u00b7 '+lastBD+' sek'):'';}
-function kNr(sn){return sn%2===1?kA:kB;}
-function kB2(sn){const nr=kNr(sn),isA=sn%2===1;return '<span class="kb '+(isA?'ka':'kbg')+'" style="width:22px;height:22px;font-size:10px;border-radius:4px">'+(nr||'\u2013')+'</span>';}
-function sgAt(e){return e-SIGN_B;}
+// ─── Core: build remaining stints from current race clock ────────────────────
+//
+// This function is the heart of the adaptive engine.
+// It receives:
+//   - drivers          : full driver config array
+//   - mode             : "boost" | "nboost"
+//   - raceClockNow     : current race clock in minutes (when next driver exits pit)
+//   - driverTimeUsed   : [minutes driven per driver so far]
+//   - driverStintsUsed : [number of stints per driver so far]
+//   - completedCount   : how many stints are done
+//   - minTotalPits     : global rule (7), already-done pits counted externally
+//   - pitsDone         : how many pit stops have occurred so far
+//
+// It returns an array of planned stints (not yet driven).
+//
+function buildRemainingStints({ drivers, mode, raceClockNow, driverTimeUsed,
+  driverStintsUsed, completedCount, pitsDone, kart1 = "", kart2 = "",
+  boostInterval = 10, boostDuration = 1 }) {
 
-// ── Tabs ──────────────────────────────────────────────────────
-document.querySelectorAll('.tab').forEach(t=>{
-  t.addEventListener('click',()=>{
-    const id=t.dataset.t;
-    document.querySelectorAll('.tab').forEach(x=>{x.classList.toggle('on',x===t);x.setAttribute('aria-selected',x===t?'true':'false');});
-    document.querySelectorAll('.tc').forEach(x=>x.classList.toggle('on',x.id==='tc-'+id));
-    if(id==='oversikt') rndrOvr();
-    if(id==='logg') rndrLogg();
-  });
-  t.addEventListener('keydown',e=>{
-    const ts=[...document.querySelectorAll('.tab')],i=ts.indexOf(t);
-    if(e.key==='ArrowRight'&&i<ts.length-1){ts[i+1].focus();ts[i+1].click();}
-    if(e.key==='ArrowLeft'&&i>0){ts[i-1].focus();ts[i-1].click();}
-  });
-});
+  const bw          = getBoostWindows(mode, boostInterval, boostDuration);
+  const numDrivers  = drivers.length;
+  const timeLeft    = RACE_DURATION - raceClockNow;
+  if (timeLeft <= 0) return [];
 
-document.querySelectorAll('.mb').forEach(b=>b.addEventListener('click',()=>{
-  mode=b.dataset.m;
-  document.querySelectorAll('.mb').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
-  document.getElementById('bbox').style.display=mode==='boost'?'block':'none';
-}));
+  // How many pit stops are still required to meet the 7-stop minimum?
+  const pitsStillRequired = Math.max(0, MIN_TOTAL_PITS - pitsDone);
 
-document.querySelectorAll('.dcb').forEach(b=>b.addEventListener('click',()=>setCount(+b.dataset.n)));
+  // ── Step 1: figure out how many stints we need ──
+  // We want to distribute time as evenly as possible, but:
+  //   - Each stint is capped at MAX_STINT (20 min), planned up to MAX_STINT - PIT_BOARD_BEFORE
+  //   - We must do at least pitsStillRequired more pit stops
+  //   - Each driver should get at least one remaining stint if possible
 
-function setCount(n){
-  const old=drivers.slice(); dcnt=n;
-  drivers=Array.from({length:n},(_,i)=>({name:'',lt:40}));
-  old.forEach((o,i)=>{if(i<n){drivers[i].name=o.name;drivers[i].lt=o.lt;}});
-  document.querySelectorAll('.dcb').forEach(b=>{const a=+b.dataset.n===n;b.classList.toggle('on',a);b.setAttribute('aria-pressed',a?'true':'false');});
-  rdDrvs();
-}
+  // Minimum stints = pitsStillRequired + 1 (last stint has no pit after)
+  const minStints = pitsStillRequired + 1;
 
-function rdDrvs(){
-  document.getElementById('drvList').innerHTML=drivers.map((d,i)=>`
-    <div class="dg" role="listitem" style="margin-bottom:6px">
-      <input type="text" id="d${i}n" value="${d.name}" placeholder="F\u00f8rer ${i+1}" oninput="drivers[${i}].name=this.value" aria-label="Navn p\u00e5 f\u00f8rer ${i+1}"
-        style="border-left:4px solid ${C[i%C.length]};height:33px;padding:0 8px;font-size:13px;border-radius:6px;background:#1E1E1E;color:#fff;width:100%;border-top:1px solid #2A2A2A;border-right:1px solid #2A2A2A;border-bottom:1px solid #2A2A2A">
-      <input type="text" inputmode="decimal" id="d${i}l" value="" placeholder="36,1" oninput="onLap(${i},this.value)" aria-label="Rundetid for f\u00f8rer ${i+1}"
-        style="height:33px;padding:0 8px;font-size:13px;border:1px solid #2A2A2A;border-radius:6px;background:#1E1E1E;color:#fff;width:100%;font-variant-numeric:tabular-nums">
-    </div>`).join('');
-}
+  // How many stints do we NEED just to fit the remaining time within MAX_STINT?
+  const stintsNeededForTime = Math.ceil(timeLeft / (MAX_STINT - PIT_BOARD_BEFORE));
 
-function onLap(i,v){
-  const p=pL(v); if(!isNaN(p)) drivers[i].lt=p;
-  const e=document.getElementById('d'+i+'l'); if(!e) return;
-  const bad=isNaN(p)&&v.trim()!==''; e.classList.toggle('err',bad); e.setAttribute('aria-invalid',bad?'true':'false');
-}
+  // How many stints to give every driver at least one go?
+  // (only drivers who have fewer stints than average get priority)
+  const avgStints = (completedCount + minStints) / numDrivers;
+  const driversNeedingStint = drivers.filter((_, i) => driverStintsUsed[i] < Math.ceil(avgStints)).length;
 
-function vKart(){
-  const a=+document.getElementById('kA').value, b=+document.getElementById('kB').value;
-  const bad=a&&b&&a===b;
-  document.getElementById('kA').classList.toggle('err',bad);
-  document.getElementById('kB').classList.toggle('err',bad);
-  document.getElementById('kErr').style.display=bad?'flex':'none';
-  kA=(a>=1&&a<=99)?a:null; kB=(b>=1&&b<=99)?b:null;
-}
+  let numStints = Math.max(minStints, stintsNeededForTime, Math.min(driversNeedingStint, numDrivers));
 
-// ── Boost ─────────────────────────────────────────────────────
-function mkBW(biM,bdS,rS){if(mode!=='boost')return[];const bi=biM*60,bw=[];for(let t=bi;t<rS;t+=bi)bw.push([t,Math.min(t+bdS,rS)]);return bw;}
-function afterB(t){for(const[a,b]of boostW){if(t>=a&&t<b)return b;}return t;}
-function nextB(t){for(const[a]of boostW){if(a>t)return a;}return Infinity;}
-function vPit(ps0,pS,wu){
-  if(mode!=='boost') return{ps:ps0,pe:ps0+pS};
-  let ps=ps0;
-  for(let i=0;i<30;i++){
-    const p2=afterB(ps); if(p2!==ps){ps=p2;continue;}
-    const pe=ps+pS,nb=nextB(pe); if(nb===Infinity||pe+wu<=nb) break;
-    const be=boostW.find(([a])=>a===nb); ps=be?be[1]:nb+1;
-  }
-  return{ps,pe:ps+pS};
-}
-
-// ── Regler (håndheves i all planlegging) ──────────────────────
-// Klemme et enkelt stint slik at det ikke bryter MAX_S eller MAX_TOT
-function clampStint(di, proposed, accDT){
-  const maxByTotal=Math.max(0, MAX_TOT-accDT[di]);
-  return Math.min(proposed, MAX_S, maxByTotal);
-}
-
-// ── Strategimotor ─────────────────────────────────────────────
-// kartHistory[di] = list of 'odd'|'even' parities this driver has driven
-let kartHistory = {};
-function resetKartHistory(){ kartHistory={}; }
-function recordKart(di, sn){ if(!kartHistory[di])kartHistory[di]=[]; kartHistory[di].push(sn%2===1?'odd':'even'); }
-
-// Penalty: prefer driver who hasn't driven this kart-parity yet
-function kartPenalty(di, stintNum){
-  const parity=stintNum%2===1?'odd':'even';
-  return (kartHistory[di]||[]).filter(p=>p===parity).length;
-}
-
-function buildSeq(nS, dT, startSn){
-  const n=drivers.length, tgt=rSec/n;
-  const info=drivers.map((d,i)=>({i, def:(tgt-dT[i])+(Math.random()*2-1), sl:0}));
-  const base=Math.floor(nS/n), ext=nS%n;
-  info.sort((a,b)=>b.def-a.def);
-  info.forEach((d,r)=>{ d.sl=base+(r<ext?1:0); });
-  const seq=[]; let last=-1;
-  const sn0=startSn||1;
-  for(let s=0;s<nS;s++){
-    const thisStintNum=sn0+s;
-    let cands=info.filter(d=>d.sl>0&&d.i!==last);
-    if(!cands.length) cands=info.filter(d=>d.sl>0);
-    // Sort: kart-parity preference first (prefer new kart), then deficit
-    cands.sort((a,b)=>{
-      const kDiff=kartPenalty(a.i,thisStintNum)-kartPenalty(b.i,thisStintNum);
-      if(kDiff!==0) return kDiff;
-      return b.def-a.def;
-    });
-    const p=cands[0];
-    seq.push(p.i);
-    recordKart(p.i, thisStintNum);
-    p.sl--; p.def-=tgt/nS; last=p.i;
-  }
-  return seq;
-}
-
-// Tildel klokkeslett til en sekvens. Respekterer MAX_S og MAX_TOT.
-function assignTimes(seq, t0, pitsDone, dT, snStart){
-  const tgtPits=Math.max(0,minP-pitsDone);
-  const res=[]; let clk=t0; const acc=dT.slice(); let pd=0, sn=snStart||1;
-  // Target equal drive time per driver over the whole race
-  const totalPitTime=Math.max(tgtPits,minP)*pitSec;
-  const tgtPD=Math.round((rSec-t0-totalPitTime)/drivers.length);
-
-  for(let s=0;s<seq.length;s++){
-    const di=seq[s], d=drivers[di], lT=d.lt;
-    const sR=seq.length-s, pL2=Math.max(0,tgtPits-pd);
-    const tR=rSec-clk, dR=tR-pL2*pitSec;
-    const dSA=seq.slice(s+1).filter(x=>x===di).length;
-    const dD=tgtPD-acc[di], dSL=1+dSA;
-    // Multi-stint drivers (dSL>1) absorb imbalance by going closer to MAX_S.
-    // Single-stint remaining: just give them their exact deficit.
-    let sl;
-    if(dSL>1){
-      // Give a larger share now so each stint stays near equal-share
-      const baseShare=Math.round(dD/dSL);
-      const pushedHigh=Math.min(MAX_S, Math.round(dD*0.6));
-      sl=Math.round(pushedHigh*0.7+(dR/sR)*0.3);
-    } else {
-      sl=Math.round(dD*0.8+(dR/sR)*0.2);
+  // Safety: ensure we don't create stints shorter than MIN_STINT
+  const drivingTime = timeLeft - (numStints - 1) * PIT_DURATION_MIN;
+  if (drivingTime / numStints < MIN_STINT && numStints > minStints) {
+    // Too many stints would create too-short stints, reduce
+    while (numStints > minStints) {
+      const dt = timeLeft - (numStints - 1) * PIT_DURATION_MIN;
+      if (dt / numStints >= MIN_STINT) break;
+      numStints--;
     }
-    sl=clampStint(di, sl, acc);
-    sl=Math.max(MIN_S, sl);
-    const rv=pL2*(pitSec+MIN_S);
-    sl=Math.min(sl, tR-rv);
-    sl=Math.max(MIN_S, Math.min(MAX_S, sl));
-    if(sl<=0) sl=Math.min(MIN_S,tR);
+  }
 
-    const end=Math.min(clk+sl,rSec), sgT=sgAt(end), bc=boostW.filter(([a])=>a>=clk&&a<end).length;
-    res.push({type:'drive',di,name:drivers[di].name||('F\u00f8rer '+(di+1)),start:clk,end,col:C[di%C.length],lT,signAt:sgT,status:'future',aStart:null,rep:false,sn,bc,plannedRounds:Math.floor((end-clk)/lT)});
-    acc[di]+=(end-clk); clk=end; sn++;
-    if(clk>=rSec) break;
+  // ── Step 2: assign stints to drivers ──
+  // Goal: equalise total driving time across all drivers
+  const overallTotalDrive = RACE_DURATION - (completedCount + numStints - 1) * PIT_DURATION_MIN;
+  const fairShare = overallTotalDrive / numDrivers; // target total per driver
 
-    if(s<seq.length-1){
-      pd++;
-      const ndi=seq[s+1], wu=WU*(drivers[ndi]?.lt||40);
-      const{ps,pe}=vPit(clk,pitSec,wu);
-      if(ps>=rSec) break;
-      // Forleng forrige stint til pit-tidspunkt hvis reglene tillater det
-      if(ps>clk){
-        const li=res.length-1;
-        if(res[li]?.type==='drive'){
-          const extra=ps-clk;
-          const newDur=(res[li].end-res[li].start)+extra;
-          if(newDur<=MAX_S && acc[res[li].di]+extra<=MAX_TOT){
-            acc[res[li].di]+=extra;
-            res[li].end=ps; res[li].signAt=sgAt(ps);
-            res[li].bc=boostW.filter(([a])=>a>=res[li].start&&a<ps).length;
-          }
+  // Remaining share per driver
+  const remainingShare = drivers.map((_, i) => Math.max(0, fairShare - driverTimeUsed[i]));
+  const totalRemShare   = remainingShare.reduce((a, b) => a + b, 0);
+
+  // How many stints each driver gets in the remaining portion
+  // Weighted by their remaining share
+  let stintAlloc = drivers.map((_, i) => {
+    return Math.max(0, Math.round((remainingShare[i] / (totalRemShare || 1)) * numStints));
+  });
+
+  // Fix rounding so sum = numStints
+  let diff = numStints - stintAlloc.reduce((a, b) => a + b, 0);
+  while (diff !== 0) {
+    const dir = diff > 0 ? 1 : -1;
+    // Add/remove from driver with most/least remaining share
+    let pick = 0;
+    for (let d = 1; d < numDrivers; d++) {
+      if (dir > 0 ? remainingShare[d] > remainingShare[pick] : stintAlloc[d] > stintAlloc[pick])
+        pick = d;
+    }
+    stintAlloc[pick] += dir;
+    diff -= dir;
+    if (stintAlloc[pick] < 0) stintAlloc[pick] = 0;
+  }
+
+  // Ensure every driver with remaining share > 0 gets at least 1 stint if capacity allows
+  for (let d = 0; d < numDrivers; d++) {
+    if (remainingShare[d] > 0 && stintAlloc[d] === 0 && numStints > 0) {
+      // Steal from the driver with the most allocated stints
+      const giver = stintAlloc.indexOf(Math.max(...stintAlloc));
+      if (stintAlloc[giver] > 1) { stintAlloc[giver]--; stintAlloc[d]++; }
+    }
+  }
+
+  // Build ordered assignment: round-robin weighted by allocation
+  const assignment = [];
+  const tempAlloc  = [...stintAlloc];
+  for (let s = 0; s < numStints; s++) {
+    // Pick driver with most remaining allocation who hasn't gone "too recently"
+    let best = -1;
+    for (let d = 0; d < numDrivers; d++) {
+      if (tempAlloc[d] <= 0) continue;
+      // Avoid same driver twice in a row unless forced
+      if (assignment.length > 0 && assignment[assignment.length - 1] === d && numDrivers > 1) continue;
+      if (best === -1 || tempAlloc[d] > tempAlloc[best]) best = d;
+    }
+    if (best === -1) {
+      // Forced same driver or leftovers
+      best = tempAlloc.findIndex((v, i) => v > 0);
+      if (best === -1) best = s % numDrivers;
+    }
+    assignment.push(best);
+    tempAlloc[best]--;
+  }
+
+  // ── Step 3: calculate stint durations ──
+  const stintTimeTarget = drivers.map((_, i) => remainingShare[i]);
+  const stintsDone      = Array(numDrivers).fill(0);
+  const stintsTotal     = [...stintAlloc];
+  let raceClock = raceClockNow;
+  const result  = [];
+
+  for (let s = 0; s < numStints; s++) {
+    const dIdx   = assignment[s];
+    const isLast = s === numStints - 1;
+    const lapSec = drivers[dIdx].lapTime;
+
+    const myStintsLeft = stintsTotal[dIdx] - stintsDone[dIdx];
+    let dur = myStintsLeft > 0 ? stintTimeTarget[dIdx] / myStintsLeft : MIN_STINT;
+
+    // Clamp: never plan beyond (MAX_STINT - 90s) so there's always room for the pit-board lap + buffer
+    dur = Math.max(MIN_STINT, Math.min(MAX_STINT - PIT_BOARD_BEFORE, dur));
+
+    let pitEntry = isLast ? null : raceClock + dur;
+
+    // Boost avoidance
+    if (!isLast && bw.length && pitEntry != null) {
+      const shifted = shiftPastBoost(pitEntry, bw, lapSec);
+      if (shifted !== pitEntry) {
+        dur      = Math.min(MAX_STINT - PIT_BOARD_BEFORE, Math.max(MIN_STINT, shifted - raceClock));
+        pitEntry = raceClock + dur;
+      }
+    }
+
+    // Last stint: use all remaining time (up to MAX_STINT)
+    if (isLast) {
+      dur      = Math.min(MAX_STINT, RACE_DURATION - raceClock);
+      pitEntry = null;
+    }
+
+    // Guard: don't let any stint push us past race end
+    if (raceClock + dur + (isLast ? 0 : PIT_DURATION_MIN) > RACE_DURATION + 0.01) {
+      dur = Math.max(MIN_STINT, RACE_DURATION - raceClock - (isLast ? 0 : PIT_DURATION_MIN));
+      pitEntry = isLast ? null : raceClock + dur;
+    }
+
+    const pitExit    = pitEntry != null ? pitEntry + PIT_DURATION_MIN : null;
+    // Pit board = 90 seconds before the planned end of this stint
+    const pitBoardAt = pitEntry != null ? parseFloat((raceClock + dur - PIT_BOARD_BEFORE).toFixed(3)) : null;
+
+    const stintNumber = completedCount + s + 1;
+    const kartNum     = stintNumber % 2 === 1 ? kart1 : kart2; // odd=kart1, even=kart2
+
+    result.push({
+      stint:          stintNumber,
+      kartNum,
+      driver:         dIdx,
+      driverName:     drivers[dIdx].name,
+      startTime:      parseFloat(raceClock.toFixed(3)),
+      duration:       parseFloat(dur.toFixed(3)),
+      endTime:        parseFloat((raceClock + dur).toFixed(3)),
+      pitEntry:       pitEntry    != null ? parseFloat(pitEntry.toFixed(3))    : null,
+      pitExit:        pitExit     != null ? parseFloat(pitExit.toFixed(3))     : null,
+      pitBoardAt:     pitBoardAt  != null ? parseFloat(pitBoardAt.toFixed(3))  : null,
+      estimatedLaps:  Math.floor((dur * 60) / lapSec),
+      inBoostConflict: pitEntry != null && inBoostWindow(pitEntry, bw),
+      isCompleted:    false,
+      isPlanned:      true,
+    });
+
+    stintTimeTarget[dIdx] -= dur;
+    stintsDone[dIdx]++;
+    raceClock = pitExit != null ? pitExit : raceClock + dur;
+  }
+
+  return result;
+}
+
+// ─── Recompute full schedule after recording actual pit exit ──────────────────) {
+  const pitsDone = completedStints.length; // each completed stint ended with a pit (except possibly last)
+
+  const driverTimeUsed   = Array(drivers.length).fill(0);
+  const driverStintsUsed = Array(drivers.length).fill(0);
+  completedStints.forEach(c => {
+    driverTimeUsed[c.driver]   += c.duration;
+    driverStintsUsed[c.driver] += 1;
+  });
+
+  const remaining = buildRemainingStints({
+    drivers, mode,
+    raceClockNow:     actualExitMin,
+    driverTimeUsed,
+    driverStintsUsed,
+    completedCount:   completedStints.length,
+    pitsDone,
+  });
+
+  return [...completedStints, ...remaining];
+}
+
+// ─── App ──────────────────────────────────────────────────────────────────────
+// ─── A11y: Global CSS styles injected via JSX style tag ─────────────────────
+function A11yStyles() {
+  return (
+    <style>{`
+      button:focus-visible,
+      input:focus-visible,
+      [role="tab"]:focus-visible,
+      [role="button"]:focus-visible,
+      a:focus-visible {
+        outline: 3px solid #FFE066 !important;
+        outline-offset: 2px !important;
+        border-radius: 4px;
+      }
+      button:focus:not(:focus-visible),
+      input:focus:not(:focus-visible) { outline: none; }
+      .skip-link {
+        position: absolute; top: -100px; left: 8px;
+        background: #FFE066; color: #000; padding: 12px 18px;
+        font-weight: 900; text-decoration: none; z-index: 9999;
+        border-radius: 4px; font-family: 'Courier New', monospace;
+      }
+      .skip-link:focus { top: 8px; }
+      .sr-only {
+        position: absolute; width: 1px; height: 1px;
+        padding: 0; margin: -1px; overflow: hidden;
+        clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
         }
       }
-      clk=ps;
-      const ae=Math.min(pe,rSec);
-      res.push({type:'pit',start:ps,end:ae,num:pitsDone+pd,status:'future',rep:false});
-      clk=ae; if(clk>=rSec) break;
-    }
-  }
-  // Extend the very last drive stint to exactly rSec so the race
-  // always ends at the configured duration (e.g. 120:00).
-  const lastDrive = [...res].reverse().find(s=>s.type==='drive');
-  if(lastDrive && lastDrive.end < rSec){
-    lastDrive.end = rSec;
-    lastDrive.signAt = lastDrive.end - SIGN_B;
-    lastDrive.bc = boostW.filter(([a])=>a>=lastDrive.start&&a<lastDrive.end).length;
-  }
-  return{stints:res, finalDT:acc};
-}
-
-// buildStrat: full plan med regelvalidering
-function buildStrat(t0, pitsDone, dT, snStart){
-  const tgtPits=Math.max(0,minP-pitsDone), nS=tgtPits+1;
-  // Reset kart history for a fresh plan (history is seeded from already-done stints below)
-  resetKartHistory();
-  // Seed history from stints already done in lStints (live mode)
-  if(lStints && lStints.length>0){
-    lStints.filter(s=>s.type==='drive'&&s.status==='done')
-           .forEach(s=>recordKart(s.di, s.sn));
-    const act=lStints.find(s=>s.type==='drive'&&s.status==='active');
-    if(act) recordKart(act.di, act.sn);
-  }
-  const seq=buildSeq(nS,dT,snStart);
-  return enforceRules(assignTimes(seq,t0,pitsDone,dT,snStart), t0, pitsDone, dT);
-}
-
-// enforceRules: splittar stints som bryter MAX_S eller MAX_TOT.
-// Legger inn ekstra pitstop kun dersom absolutt nødvendig.
-function enforceRules(plan, t0, pitsDone, dT){
-  let stints=plan.stints;
-  const acc=dT.slice();
-  let changed=false;
-
-  for(let i=0;i<stints.length;i++){
-    const s=stints[i];
-    if(s.type!=='drive') { if(s.type==='drive'){} continue; }
-    if(s.type!=='drive') continue;
-    const dur=s.end-s.start;
-    const alreadyBefore=acc[s.di]; // accumulation BEFORE this stint
-    const maxAllowed=Math.min(MAX_S, MAX_TOT-alreadyBefore);
-
-    if(dur>maxAllowed && maxAllowed>=MIN_S && s.end<rSec){
-      // Truncate and rebuild the rest
-      s.end=s.start+maxAllowed;
-      s.signAt=sgAt(s.end);
-      s.bc=boostW.filter(([a])=>a>=s.start&&a<s.end).length;
-      const pD=stints.slice(0,i+1).filter(x=>x.type==='pit').length+pitsDone;
-      const newDT=dT.slice();
-      stints.slice(0,i+1).filter(x=>x.type==='drive').forEach(x=>{ newDT[x.di]+=(x.end-x.start); });
-      const{stints:tail}=buildStrat(s.end, pD, newDT, s.sn+1);
-      stints=[...stints.slice(0,i+1), ...tail];
-      changed=true;
-      break;
-    }
-    acc[s.di]+=dur;
-  }
-  if(changed) return enforceRules({stints}, t0, pitsDone, dT);
-  return{stints, finalDT:acc};
-}
-
-// replanKeepOrder: behold rekkefølge på fører, juster kun tider
-// replanKeepOrder: retimes EXISTING future stints without adding/removing any.
-// Core principle: all drivers should end up with equal total drive time.
-// Drivers with 2+ stints absorb imbalance by driving closer to MAX_S.
-// Drivers with 1 stint get their fair share. Never breaks MAX_S or MAX_TOT.
-function replanKeepOrder(fromLIdx, newStart){
-  // Collect future drive stints (indices into lStints) in order
-  const futDriveIdxs=[];
-  for(let i=fromLIdx;i<lStints.length;i++){
-    if(lStints[i].type==='drive'&&lStints[i].status==='future') futDriveIdxs.push(i);
-  }
-  if(!futDriveIdxs.length) return;
-
-  const nDrives=futDriveIdxs.length;
-  const futPits=lStints.slice(fromLIdx).filter(s=>s.type==='pit'&&s.status==='future').length;
-  const totalDriveAvail=Math.max(0, rSec - newStart - futPits*pitSec);
-
-  // Current accumulated drive time per driver (done + active)
-  const dtNow=getDT();
-
-  // How many more future stints does each driver have?
-  const futureStintCount=drivers.map(()=>0);
-  futDriveIdxs.forEach(idx=>{ futureStintCount[lStints[idx].di]++; });
-
-  // Target: all drivers finish with equal total drive time over the full race.
-  // Equal share = totalRaceTime / nDrivers (minus all pit time).
-  const totalRaceDrive=rSec - lStints.filter(s=>s.type==='pit').length*pitSec;
-  const equalShare=Math.round(totalRaceDrive/drivers.length);
-
-  // Calculate ideal allocation for each future stint.
-  // Strategy: driver's deficit = equalShare - dtNow[di]
-  // Spread that deficit evenly across their remaining future stints.
-  // Drivers with 2 stints get up to MAX_S each; drivers with 1 get their exact deficit.
-  const dtTemp=dtNow.slice();
-  const allocations=futDriveIdxs.map((idx,k)=>{
-    const di=lStints[idx].di;
-    const remainingStints=futureStintCount[di]; // stints left for this driver including this one
-    const deficit=Math.max(0, equalShare - dtTemp[di]);
-    // Give this stint: deficit / remainingStints, nudged toward MAX_S for multi-stint drivers
-    let ideal=Math.round(deficit / remainingStints);
-    // If driver has multiple future stints, prefer giving MORE now (closer to MAX_S)
-    // so their remaining stint can also be near equal share
-    if(remainingStints>1) ideal=Math.min(MAX_S, Math.max(ideal, Math.round(deficit*0.55)));
-    ideal=clampStint(di, ideal, dtTemp);
-    ideal=Math.max(MIN_S, Math.min(MAX_S, ideal));
-    dtTemp[di]+=ideal;
-    futureStintCount[di]--;
-    return ideal;
-  });
-
-  // Scale allocations to exactly fill totalDriveAvail (keep proportions)
-  const allocSum=allocations.reduce((a,b)=>a+b,0);
-  if(allocSum>0 && Math.abs(allocSum-totalDriveAvail)>5){
-    const scale=totalDriveAvail/allocSum;
-    const dtCheck=dtNow.slice();
-    for(let k=0;k<allocations.length;k++){
-      const di=lStints[futDriveIdxs[k]].di;
-      let scaled=Math.round(allocations[k]*scale);
-      scaled=Math.max(MIN_S, Math.min(MAX_S, scaled));
-      // Re-enforce MAX_TOT after scaling
-      scaled=Math.min(scaled, Math.max(0, MAX_TOT-dtCheck[di]));
-      scaled=Math.max(MIN_S, scaled);
-      allocations[k]=scaled;
-      dtCheck[di]+=scaled;
-    }
-    // Give any leftover seconds to the last stint (it goes to rSec anyway)
-    // so total adds up cleanly
-  }
-
-  // Apply allocations: walk lStints from fromLIdx, update start/end/pit times
-  let clk=newStart;
-  let allocIdx=0;
-  for(let i=fromLIdx;i<lStints.length;i++){
-    const s=lStints[i];
-    if(s.type==='pit'&&s.status==='future'){
-      s.start=clk; s.end=clk+pitSec; s.rep=true; clk+=pitSec;
-    } else if(s.type==='drive'&&s.status==='future'){
-      let dur=allocations[allocIdx++];
-      s.start=clk;
-      s.end=Math.min(clk+dur, rSec);
-      s.signAt=s.end-SIGN_B;
-      s.bc=boostW.filter(([a])=>a>=s.start&&a<s.end).length;
-      s.rep=true;
-      s.plannedRounds=Math.floor((s.end-s.start)/(s.lT||40)); // update planned rounds
-      clk=s.end;
-      if(clk>=rSec) break;
-    }
-  }
-
-  // Always guarantee the very last drive stint (active or future) ends at rSec
-  const allNonDone=lStints.filter(s=>s.type==='drive'&&(s.status==='active'||s.status==='future'));
-  if(allNonDone.length>0){
-    const ld=allNonDone[allNonDone.length-1];
-    if(ld.end<rSec){
-      ld.end=rSec;
-      ld.signAt=ld.end-SIGN_B;
-      ld.bc=boostW.filter(([a])=>a>=ld.start&&a<ld.end).length;
-      ld.rep=true;
-    }
-  }
-}
-
-function rdUI(){
-  drivers.forEach((d,i)=>{
-    d.name=document.getElementById('d'+i+'n')?.value||'';
-    const p=pL(document.getElementById('d'+i+'l')?.value); if(!isNaN(p)) d.lt=p;
-  });
-}
-
-// ── Generer strategi ──────────────────────────────────────────
-function generate(){
-  rdUI(); vKart();
-  resetKartHistory(); // fresh plan – clear kart history
-  const bad=drivers.filter(d=>isNaN(d.lt)||d.lt<10);
-  if(bad.length){alert('Mangler rundetid: '+bad.map((d,i)=>d.name||('F\u00f8rer '+(i+1))).join(', '));return;}
-  rSec=+document.getElementById('raceDur').value*60;
-  minP=+document.getElementById('minPits').value;
-  pitSec=+document.getElementById('pitDur').value;
-  lastBI=+document.getElementById('bi').value||10;
-  lastBD=+document.getElementById('bd').value||60;
-  boostW=mkBW(lastBI,lastBD,rSec);
-  const{stints:s}=buildStrat(0,0,drivers.map(()=>0),1);
-  stints=s; stints.forEach(x=>{x.rep=false;x.status='future';});
-  rndrSetup(stints); document.getElementById('res').style.display='block';
-  ann('Strategi: '+stints.filter(x=>x.type==='pit').length+' pitstop.');
-}
-
-// ── Tabellrad ─────────────────────────────────────────────────
-function stintRow(s, sn, live){
-  const sgT=s.type==='drive'?sgAt(s.end):s.start-SIGN_B;
-  if(s.type==='pit'){
-    const cl=live?(s.status==='done'?'bd':s.status==='active'?'ba':'bp'):'bp';
-    const lb=live?(s.status==='done'?'Ferdig':s.status==='active'?'P\u00e5g\u00e5r':'Plan'):'Pit';
-    return '<tr class="pit-bg"><td><span class="badge '+cl+'">P'+(s.num||'?')+'</span></td>'
-      +'<td></td><td style="color:#C0C0C0;font-size:11px;font-style:italic">Pit inn '+fm(s.start)+' → ut '+fm(s.end)+'</td>'
-      +'<td>'+fm(s.start)+'</td><td>'+fm(s.end)+'</td><td>'+Math.round(pitSec/60)+'m</td>'
-      +'<td></td>'
-      +'<td class="sign-td">\u26d1 '+fm(sgT)+'</td>'
-      +'<td><span class="badge '+cl+'">'+lb+'</span></td><td></td><td></td></tr>';
-  }
-  const dur=s.end-s.start;
-  // Use stored plannedRounds (static from strategy) when available;
-  // only recalculate if not yet set (e.g. setup tab preview)
-  const rn = (live && s.plannedRounds !== undefined)
-    ? s.plannedRounds
-    : Math.floor(dur/(s.lT||40));
-  const cl=live?(s.status==='done'?'bd':s.status==='active'?'ba':'bf'):'bf';
-  const lb=live?(s.status==='done'?'Ferdig':s.status==='active'?'Kj\u00f8rer':'Plan'):'Plan';
-  const ri=s.rep?'<span class="badge br" style="margin-left:3px">R</span>':'';
-  const bt=s.bc?('<span class="badge bbo" style="margin-left:3px">\u26a1'+s.bc+'</span>'):'';
-  // Actual laps cell: editable input for done stints, empty for future/active
-  let actualCell='<td></td><td></td>';
-  if(live){
-    const actVal = (typeof actualLaps !== 'undefined' && actualLaps[s.sn] !== undefined)
-      ? actualLaps[s.sn] : '';
-    if(s.status==='done'){
-      // Show input for completed stints
-      const dev = actVal!=='' ? (actVal - rn) : '';
-      const devColor = dev===''?'#555':(dev>0?'#39D353':(dev<0?'#E8002D':'#C0C0C0'));
-      const devStr  = dev===''?'–':(dev>0?'+'+dev:String(dev));
-      actualCell = '<td><input type="number" value="'+actVal+'" min="0" max="999"'
-        +' style="width:58px;height:26px;padding:0 4px;font-size:11px;font-variant-numeric:tabular-nums;'
-        +'border:1px solid #2A2A2A;border-radius:4px;background:#1E1E1E;color:#fff;text-align:center"'
-        +' onchange="setActualLaps('+s.sn+',this.value)"'
-        +' onclick="event.stopPropagation()"'
-        +' aria-label="Faktisk antall runder for stint '+s.sn+'"></td>'
-        +'<td style="color:'+devColor+';font-weight:700;font-size:12px;text-align:center">'+devStr+'</td>';
-    } else {
-      // Active or future: show planned only, no input yet
-      actualCell = '<td style="color:#555;font-size:11px;text-align:center">–</td>'
-                 +'<td style="color:#555;font-size:11px;text-align:center">–</td>';
-    }
-  }
-  return '<tr style="'+(live&&s.status==='done'?'opacity:.4':'')+'"><td style="font-size:10px;color:#555;font-weight:700">'+sn+'</td>'
-    +'<td>'+kB2(s.sn)+'</td>'
-    +'<td><span style="display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap"><span style="width:8px;height:8px;border-radius:50%;background:'+s.col+';display:inline-block;flex-shrink:0"></span><span style="color:#fff">'+s.name+'</span>'+ri+bt+'</span></td>'
-    +'<td>'+fm(s.start)+'</td><td>'+fm(s.end)+'</td><td>'+Math.round(dur/60)+'m</td>'
-    +'<td style="color:#fff">~'+rn+'<span style="font-size:10px;color:#555"> ('+fmL(s.lT||40)+'s)</span></td>'
-    +'<td class="sign-td">\u26d1 '+fm(sgT)+'</td>'
-    +'<td><span class="badge '+cl+'">'+lb+'</span></td>'
-    +actualCell+'</tr>';
-}
-
-// ── Tidslinje ─────────────────────────────────────────────────
-function rndrTL(bId,rId,boId,arr,rS){
-  const r=document.getElementById(rId);
-  if(r){const T=12;r.innerHTML=Array.from({length:T+1},(_,i)=>'<span>'+Math.round(i*rS/T/60)+"'</span>").join('');}
-  const bEl=document.getElementById(boId);
-  if(bEl){bEl.innerHTML=boostW.length?'<div class="bb">'+boostW.map(([a,b])=>'<div class="bs" style="left:'+(a/rS*100).toFixed(2)+'%;width:'+((b-a)/rS*100).toFixed(2)+'%"></div>').join('')+'</div><p style="font-size:10px;color:#555;margin-bottom:5px"><span style="display:inline-block;width:8px;height:5px;background:#C9A84C;border-radius:2px;margin-right:3px;vertical-align:middle"></span>Gull = boost</p>':'';}
-  const bar=document.getElementById(bId); if(!bar) return;
-  const nl=bar.querySelector('.nl'); bar.innerHTML=''; if(nl) bar.appendChild(nl);
-  arr.forEach(s=>{
-    const l=(s.start/rS*100).toFixed(2), w=Math.max(0.4,(s.end-s.start)/rS*100).toFixed(2);
-    const seg=document.createElement('div'); seg.className='tls'; seg.style.cssText='left:'+l+'%;width:'+w+'%;';
-    if(s.type==='pit'){seg.style.background='#1A0005';seg.style.borderLeft='2px solid #E8002D';seg.innerHTML='<span style="font-size:9px;color:#E8002D;font-weight:700">P</span>';}
-    else{seg.style.cssText+='background:'+s.col+'18;border-left:'+(s.rep?'2px dashed '+s.col:'2px solid '+s.col)+';opacity:'+(s.status==='done'?'0.3':'1');seg.innerHTML='<span style="font-size:10px;color:'+s.col+';font-weight:700">'+(s.name||'').split(' ')[0].substring(0,5)+'</span>';}
-    seg.title=s.type==='pit'?('P'+s.num+': '+fm(s.start)+'\u2013'+fm(s.end)):(s.name+': '+fm(s.start)+'\u2013'+fm(s.end));
-    bar.appendChild(seg);
-  });
-}
-
-function rndrSetup(arr){
-  document.getElementById('mBadge').textContent=mlbl(); document.getElementById('bSum').textContent=bsum();
-  rndrTL('tlBar','tlR','bBarW',arr,rSec);
-  const pits=arr.filter(s=>s.type==='pit').length;
-  const rnd=arr.filter(s=>s.type==='drive').reduce((sm,s)=>sm+Math.floor((s.end-s.start)/s.lT),0);
-  document.getElementById('statsG').innerHTML=[{v:pits,l:'Pitstop'},{v:rnd,l:'Est. runder'},{v:Math.round(rSec/60)+' min',l:'L\u00f8pstid'},{v:drivers.length,l:'F\u00f8rere'}]
-    .map(x=>'<div class="sc"><div class="sv">'+x.v+'</div><div class="sl">'+x.l+'</div></div>').join('');
-  let sn=0; document.getElementById('stintTbl').innerHTML=arr.map(s=>stintRow(s,s.type==='drive'?++sn:null,false)).join('');
-}
-
-// ── Live-tilstand ─────────────────────────────────────────────
-function getDT(){
-  const dt=drivers.map(()=>0);
-  lStints.filter(s=>s.type==='drive'&&s.status==='done').forEach(s=>dt[s.di]+=(s.end-s.start));
-  const act=lStints.find(s=>s.type==='drive'&&s.status==='active');
-  if(act) dt[act.di]+=(lElap-(act.aStart||act.start));
-  return dt;
-}
-
-// Neste planlagte drive-stint ETTER aktivt stint
-function nextPlanned(){
-  const actIdx=lStints.findIndex(s=>s.type==='drive'&&s.status==='active');
-  if(actIdx>=0){
-    for(let i=actIdx+1;i<lStints.length;i++){
-      if(lStints[i].type==='drive'&&lStints[i].status==='future') return lStints[i];
-    }
-    return null;
-  }
-  return lStints.find(s=>s.type==='drive'&&s.status==='future')||null;
-}
-
-// ── Dropdown (bevarer brukerens valg mellom ticks) ────────────
-// updSel: removed (Bytt UI no longer in DOM)
-let _lastNxtDi=-1;
-function updSel(force){ _lastNxtDi=-1; }
-
-// ── Bytt, og juster plan ──────────────────────────────────────
-function doBytt(){
-  const di=+null.value;
-  const nxt=nextPlanned(); if(!nxt) return;
-  const d=drivers[di];
-  const act=lStints.find(s=>s.type==='drive'&&s.status==='active');
-  if(act&&act.di===di){alert((d.name||('F\u00f8rer '+(di+1)))+' kj\u00f8rer allerede. Kan ikke sette samme f\u00f8rer to ganger p\u00e5 rad.');return;}
-  const nxtIdx=lStints.indexOf(nxt);
-  let prevDrive=null;
-  for(let i=nxtIdx-1;i>=0;i--){if(lStints[i].type==='drive'){prevDrive=lStints[i];break;}}
-  if(prevDrive&&prevDrive.di===di){alert((d.name||('F\u00f8rer '+(di+1)))+' kj\u00f8rte nettopp forrige stint. Kan ikke sette samme f\u00f8rer to ganger p\u00e5 rad.');return;}
-  if(di===nxt.di){ann('F\u00f8rer er allerede planlagt.');return;}
-  const dt=getDT();
-  if(dt[di]>=MAX_TOT){alert((d.name||('F\u00f8rer '+(di+1)))+' har allerede n\u00e5dd maks kj\u00f8retid (50 min).');return;}
-  nxt.di=di; nxt.name=d.name||('F\u00f8rer '+(di+1)); nxt.col=C[di%C.length]; nxt.lT=d.lt; nxt.rep=true;
-  nxt.signAt=sgAt(nxt.end); nxt.bc=boostW.filter(([a])=>a>=nxt.start&&a<nxt.end).length;
-  const futIdx=lStints.findIndex((s,i)=>i>nxtIdx&&s.status==='future');
-  if(futIdx>=0) replanKeepOrder(futIdx,nxt.end);
-  const msg=fm(lElap)+' \u2013 Stint '+nxt.sn+': byttet til '+(d.name||('F\u00f8rer '+(di+1)));
-  addLog(msg); ann(msg); updSel(true); rndrAll();
-}
-
-// ── Pit na ────────────────────────────────────────────────────
-// Trykkes nar neste forer kjorer ut fra pit.
-// Steg: 1) aktivt stint done, 2) neste pit done, 3) neste drive aktiv, 4) retune.
-// Beregning respekterer MAX_S, MAX_TOT, boost-vinduer, pitskilt.
-function pitNaa(){
-  const t=lElap;
-  // Steg 1: avslutt aktivt stint
-  const actIdx=lStints.findIndex(s=>s.type==='drive'&&s.status==='active');
-  if(actIdx<0){ann('Ingen aktiv f\u00f8rer akkurat n\u00e5.');return;}
-  lStints[actIdx].status='done';
-  lStints[actIdx].end=t;
-
-  // Steg 2: merk neste pit som ferdig (den rett etter aktivt stint)
-  let pitIdx=-1;
-  for(let i=actIdx+1;i<lStints.length;i++){
-    if(lStints[i].type==='pit'){
-      if(lStints[i].status!=='done'){
-        pitIdx=i;
-        lStints[i].status='done';
-        lStints[i].start=t;
-        lStints[i].end=t+pitSec;
+      @media (prefers-contrast: more) { body { background: #000 !important; } }
+      @media (pointer: coarse) {
+        button, input[type="number"], input[type="text"] { min-height: 44px; }
       }
-      break;
-    }
-    if(lStints[i].type==='drive') break;
-  }
-
-  // Steg 3: finn neste drive-stint
-  const searchFrom=pitIdx>=0?pitIdx:actIdx;
-  let nextDriveIdx=-1;
-  for(let i=searchFrom+1;i<lStints.length;i++){
-    if(lStints[i].type==='drive'&&lStints[i].status==='future'){nextDriveIdx=i;break;}
-  }
-
-  if(nextDriveIdx<0){
-    // No more planned stints after this pit – race ends with current active stint
-    // Just log and return; the active stint will run to rSec
-    addLog(fm(t)+' \u2013 Pit registrert. Siste f\u00f8rer fullforer l\u00f8pet.');
-    ann('Pit kl. '+fm(t)+'.');
-    updSel(true); rndrAll(); return;
-  }
-
-  // Steg 4: aktiver neste drive-stint fra na
-  const nds=lStints[nextDriveIdx];
-  nds.status='active'; nds.aStart=t; nds.start=t; nds.rep=true;
-
-  // Beregn stintlengde: respekter MAX_S og MAX_TOT
-  const dt=getDT();
-  const remDrives=lStints.slice(nextDriveIdx+1).filter(s=>s.type==='drive'&&s.status==='future');
-  const remPits=lStints.slice(nextDriveIdx+1).filter(s=>s.type==='pit'&&s.status==='future').length;
-  const totalLeft=1+remDrives.length;
-  const driveTimeLeft=Math.max(0,rSec-t-remPits*pitSec);
-  let idealSl=Math.round(driveTimeLeft/totalLeft);
-  idealSl=clampStint(nds.di, idealSl, dt);
-  idealSl=Math.min(MAX_S, Math.max(MIN_S, idealSl));
-  nds.end=Math.min(t+idealSl, rSec);
-  nds.signAt=sgAt(nds.end);
-  nds.bc=boostW.filter(([a])=>a>=t&&a<nds.end).length;
-  nds.plannedRounds=Math.floor((nds.end-t)/(nds.lT||40));
-
-  // Steg 5: retune alle fremtidige stints (behold rekkefølge, juster kun tider)
-  // Find the first future stint after the newly activated drive stint
-  const afterIdx=lStints.findIndex((s,i)=>i>nextDriveIdx&&s.status==='future');
-  if(afterIdx>=0){
-    // There are more stints after this one – retime them all
-    replanKeepOrder(afterIdx, nds.end);
-  } else {
-    // This is the last planned drive stint – stretch to rSec if possible
-    const maxEnd=Math.min(t+MAX_S, rSec);
-    nds.end=maxEnd;
-    nds.signAt=nds.end-SIGN_B;
-    nds.bc=boostW.filter(([a])=>a>=t&&a<nds.end).length;
-  }
-  // Final guarantee: last drive stint ends at rSec (covers active + future)
-  const allNonDone=lStints.filter(s=>s.type==='drive'&&(s.status==='active'||s.status==='future'));
-  if(allNonDone.length>0){
-    const veryLast=allNonDone[allNonDone.length-1];
-    if(veryLast.end<rSec){
-      veryLast.end=rSec;
-      veryLast.signAt=veryLast.end-SIGN_B;
-      veryLast.bc=boostW.filter(([a])=>a>=veryLast.start&&a<veryLast.end).length;
-    }
-  }
-
-  const msg=fm(t)+' \u2013 Pit n\u00e5: '+nds.name+' ut p\u00e5 banen (stint '+nds.sn+')';
-  addLog(msg); ann(msg); updSel(true); rndrAll();
-  shAlert('Pit registrert kl. '+fm(t)+'. '+nds.name+' kj\u00f8rer stint '+nds.sn+'.');
+    `}</style>
+  );
 }
 
-// ── Klokke ────────────────────────────────────────────────────
-function goLive(){
-  lStints=stints.map(s=>({...s,status:'future',aStart:null}));
-  const firstDrive=lStints.find(s=>s.type==='drive');
-  if(firstDrive){firstDrive.status='active';firstDrive.aStart=0;}
-  lRun=false; lElap=0; elog=[]; clearInterval(lTimer); lTimer=null;
-  actualLaps={};
-  lStartWallTime=null; lElapsedAtStart=0; clearState(); _lastNxtDi=-1;
-  document.getElementById('lMBadge').textContent=mlbl();
-  document.getElementById('lBSum').textContent=bsum();
-  document.getElementById('lContent').style.display='block';
-  document.getElementById('lEmpty').style.display='none';
-  updSel(true); rndrAll();
-  document.querySelectorAll('.tab').forEach(t=>{t.classList.toggle('on',t.dataset.t==='live');t.setAttribute('aria-selected',t.dataset.t==='live'?'true':'false');});
-  document.querySelectorAll('.tc').forEach(t=>t.classList.toggle('on',t.id==='tc-live'));
-}
+function GokartStrategy() {
+  const [page,        setPage]        = useState("setup");
+  const [numDrivers,  setNumDrivers]  = useState(3);
+  const [mode,        setMode]        = useState("boost");
+  const [boostInterval, setBoostInterval] = useState(10);  // minutes between boosts
+  const [boostDuration, setBoostDuration] = useState(1);   // minutes boost lasts
+  const [kart1,       setKart1]       = useState("");   // odd stints
+  const [kart2,       setKart2]       = useState("");   // even stints
+  const [drivers,     setDrivers]     = useState([
+    { name: "Fører 1", lapTime: 55,   lapTimeStr: "55,0" },
+    { name: "Fører 2", lapTime: 57,   lapTimeStr: "57,0" },
+    { name: "Fører 3", lapTime: 60,   lapTimeStr: "60,0" },
+  ]);
 
-function togClock(){
-  if(!lRun){
-    lRun=true; lStartWallTime=Date.now(); lElapsedAtStart=lElap; saveState();
-    const b=document.getElementById('ssBtn');
-    b.querySelector('#ssBtnTxt').textContent=' Pause'; b.style.background='#1A1000'; b.style.color='#C9A84C'; b.style.borderColor='#C9A84C';
-    lTimer=setInterval(()=>{lElap++;tick();saveState();},1000);
-  }else{
-    lRun=false; clearInterval(lTimer); lTimer=null; clearState();
-    const b=document.getElementById('ssBtn');
-    b.querySelector('#ssBtnTxt').textContent=' Fortsett'; b.style.background='#E8002D'; b.style.color='#fff'; b.style.borderColor='#E8002D';
-  }
-}
+  const [schedule,       setSchedule]       = useState([]);
+  const [completedStints, setCompleted]     = useState([]);
+  const [actualLaps,     setActualLaps]     = useState({}); // { stintNumber: overrideValue }
+  const [raceStarted,    setRaceStarted]    = useState(false);
+  const [raceStartTime,  setRaceStartTime]  = useState(null);
+  const [now,            setNow]            = useState(Date.now());
+  const [activeTab,      setActiveTab]      = useState("live");
+  const [manualTime,     setManualTime]     = useState("");
+  const [adjustLog,      setAdjustLog]      = useState([]); // log of adjustments
 
-function rstClock(){
-  lRun=false; clearInterval(lTimer); lTimer=null; lElap=0;
-  lStartWallTime=null; lElapsedAtStart=0; clearState();
-  const b=document.getElementById('ssBtn');
-  b.querySelector('#ssBtnTxt').textContent=' Start klokke'; b.style.background='#E8002D'; b.style.color='#fff'; b.style.borderColor='#E8002D';
-  document.getElementById('lClock').textContent='0:00';
-  document.getElementById('lRem').textContent=fm(rSec);
-  document.getElementById('nowL').style.left='0';
-}
+  // ── Cloudflare KV sync ──────────────────────────────────────────────────────
+  // Bytt ut denne URL-en med din Worker-URL etter deployment:
+  const KV_API = "https://gokart-api.allansinmail.workers.dev";
+  // Eks: "https://gokart-api.dittbrukernavn.workers.dev"
+  // Eller med eget domene: "https://api.dittdomene.no"
 
-function tick(){
-  document.getElementById('lClock').textContent=fm(lElap);
-  document.getElementById('lRem').textContent=fm(Math.max(0,rSec-lElap));
-  document.getElementById('nowL').style.left=(lElap/rSec*100).toFixed(2)+'%';
-  chkSign(); rndrNextAct(); updSel(false);
-}
+  const [kvKey,       setKvKey]       = useState("mitt-lag-2025");
+  const [kvStatus,    setKvStatus]    = useState(""); // "", "saving", "saved", "loading", "error"
+  const [kvLastSaved, setKvLastSaved] = useState(null);
+  const [kvPanel,     setKvPanel]     = useState(false); // show/hide sync panel
 
-function chkSign(){
-  const act=lStints.find(s=>s.type==='drive'&&s.status==='active');
-  if(!act){document.getElementById('psCard').style.display='none';return;}
-  const sgT=sgAt(act.end);
-  if(lElap>=sgT&&lElap<act.end+act.lT*2){
-    const dur=lElap-(act.aStart||act.start);
-    document.getElementById('psCard').style.display='flex';
-    document.getElementById('psTxt').textContent='VIS PIT-SKILT TIL '+((act.name||'').toUpperCase())+'! Kart '+(kNr(act.sn)||'?')+'.';
-    document.getElementById('psSub').textContent=Math.round(dur/60)+' min sittet. Pit inn: '+fm(act.end)+' (om '+Math.round(Math.max(0,act.end-lElap))+' sek). Fullf\u00f8r runde + 1 til.';
-    if(lElap===Math.round(sgT)) ann(document.getElementById('psTxt').textContent,true);
-  }else document.getElementById('psCard').style.display='none';
-}
-
-function rndrNextAct(){
-  const rem=rSec-lElap;
-  const np=lStints.find(s=>s.type==='pit'&&s.status==='future');
-  const act=lStints.find(s=>s.type==='drive'&&s.status==='active');
-  const actIdx=lStints.findIndex(s=>s.type==='drive'&&s.status==='active');
-  let nd=null;
-  if(actIdx>=0){for(let i=actIdx+1;i<lStints.length;i++){if(lStints[i].type==='drive'&&lStints[i].status==='future'){nd=lStints[i];break;}}}
-  else{nd=lStints.find(s=>s.type==='drive'&&s.status==='future')||null;}
-  let h='<div style="display:flex;gap:8px;flex-wrap:wrap">';
-  if(act){
-    const sit=lElap-(act.aStart||act.start),sgT=sgAt(act.end),sinIn=Math.max(0,sgT-lElap),kn=kNr(act.sn),nb=nextB(lElap);
-    h+='<div style="flex:1;min-width:120px;background:#111;border-radius:8px;padding:8px 10px;border-left:3px solid '+act.col+'">'
-      +'<div style="font-size:10px;color:#555;margin-bottom:2px;font-weight:700">KJ\u00d8RER N\u00c5</div>'
-      +'<div style="font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:5px">'+act.name+(kn?('<span class="kb '+(act.sn%2===1?'ka':'kbg')+'" style="width:22px;height:22px;font-size:10px;border-radius:4px">'+kn+'</span>'):'')+'</div>'
-      +'<div style="font-size:11px;color:#555">'+Math.round(sit/60)+' min \u00b7 '+fmL(act.lT)+'s/runde</div>'
-      +(sinIn>0?('<div style="font-size:11px;color:#C9A84C;margin-top:3px;font-weight:700">\u26d1 Pit-skilt om '+fm(sinIn)+' (kl. '+fm(sgT)+')</div>'):'<div style="font-size:12px;color:#E8002D;font-weight:700;margin-top:3px">VIS PIT-SKILT N\u00c5!</div>')
-      +(nb<Infinity&&nb<act.end?('<div style="font-size:10px;color:#C9A84C;margin-top:2px">\u26a1 Boost om '+fm(nb-lElap)+'</div>'):'')
-      +'</div>';
-  }
-  if(np){
-    const pi=Math.max(0,np.start-lElap), nkn=nd?kNr(nd.sn):null;
-    h+='<div style="flex:1;min-width:120px;background:#111;border-radius:8px;padding:8px 10px;border-left:3px solid #E8002D">'
-      +'<div style="font-size:10px;color:#555;margin-bottom:2px;font-weight:700">NESTE PITSTOP</div>'
-      +'<div style="font-size:13px;font-weight:700;color:#fff">Pit inn: '+fm(np.start)+'</div>'
-      +'<div style="font-size:11px;color:#C9A84C;font-weight:700">\u26d1 Pit-skilt: '+fm(sgAt(np.start))+'</div>'
-      +'<div style="font-size:11px;color:#555">Om '+fm(pi)+(nkn?' \u00b7 Neste kart: <strong style="color:#fff">'+nkn+'</strong>':'')+'</div>'
-      +'</div>';
-  }
-  if(nd){
-    const nkn=kNr(nd.sn);
-    h+='<div style="flex:1;min-width:120px;background:#111;border-radius:8px;padding:8px 10px;border-left:3px solid '+nd.col+'">'
-      +'<div style="font-size:10px;color:#555;margin-bottom:2px;font-weight:700">NESTE F\u00d8RER</div>'
-      +'<div style="font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:5px">'+nd.name+(nkn?('<span class="kb '+(nd.sn%2===1?'ka':'kbg')+'" style="width:22px;height:22px;font-size:10px;border-radius:4px">'+nkn+'</span>'):'')+'</div>'
-      +'<div style="font-size:11px;color:#555">Plan ut: '+fm(nd.start)+'</div>'
-      +'</div>';
-  }
-  h+='<div style="flex:1;min-width:120px;background:#111;border-radius:8px;padding:8px 10px">'
-    +'<div style="font-size:10px;color:#555;margin-bottom:2px;font-weight:700">GJENSTÅENDE</div>'
-    +'<div style="font-size:13px;font-weight:700;color:#fff">'+fm(rem)+'</div>'
-    +'<div style="font-size:11px;color:#555">'+lStints.filter(s=>s.type==='pit'&&s.status==='future').length+' pitstop igjen</div>'
-    +'</div>';
-  h+='</div>'; document.getElementById('nextAct').innerHTML=h;
-}
-
-function setActualLaps(sn, val){
-  const n = parseInt(val);
-  if(!isNaN(n) && n >= 0){
-    actualLaps[sn] = n;
-  } else {
-    delete actualLaps[sn];
-  }
-  rndrLive(); // re-render to update deviation column
-}
-
-function rndrLive(){
-  let sn=0; const hasR=lStints.some(s=>s.rep&&s.status!=='done');
-  document.getElementById('rpNote').style.display=hasR?'flex':'none';
-  if(hasR) document.getElementById('rpNoteT').textContent='Replanlagte stints (R): rekkef\u00f8lge beholdt, tider justert iht. regler.';
-  // Only show drive stints – pit rows are omitted (pit info visible in Neste hendelser)
-  document.getElementById('liveTbl').innerHTML=lStints
-    .filter(s=>s.type==='drive')
-    .map(s=>stintRow(s,++sn,true)).join('');
-}
-
-function rndrAll(){rndrTL('lTlBar','lTlR','lBBar',lStints,rSec);rndrLive();rndrNextAct();}
-
-function shAlert(msg){
-  document.getElementById('rpAlert').style.display='flex';
-  document.getElementById('rpTxt').textContent=msg;
-  setTimeout(()=>document.getElementById('rpAlert').style.display='none',9000);
-  addLog(msg); ann(msg);
-}
-function addLog(m){
-  elog.unshift(m);
-  document.getElementById('logL').innerHTML=elog.map(e=>'<div style="padding:5px 0;border-bottom:1px solid #1E1E1E;color:#555">'+e+'</div>').join('');
-}
-
-// ── Oversikt ──────────────────────────────────────────────────
-function drvSum(arr){
-  return drivers.map((d,i)=>{
-    const my=arr.filter(s=>s.type==='drive'&&s.di===i);
-    return{i,name:d.name||('F\u00f8rer '+(i+1)),col:C[i%C.length],lt:d.lt,
-      totalSec:my.reduce((a,s)=>a+(s.end-s.start),0),
-      totalRnd:my.reduce((a,s)=>a+Math.floor((s.end-s.start)/(s.lT||d.lt||40)),0),
-      stintCount:my.length,
-      stints:my.map(s=>({sn:s.sn,end:s.end,signAt:s.signAt,lapT:s.lT||d.lt,status:s.status||'future',dur:s.end-s.start}))};
+  // Collect all saveable state into one object
+  const collectState = () => ({
+    version: 1,
+    savedAt: new Date().toISOString(),
+    setup: { numDrivers, mode, boostInterval, boostDuration, kart1, kart2, drivers },
+    race:  { schedule, completedStints, actualLaps, adjustLog,
+             raceStarted, raceStartTime },
   });
-}
 
-function rndrOvr(){
-  const src=lStints.length?lStints:stints;
-  if(!src.length){document.getElementById('ovrEmpty').style.display='block';document.getElementById('ovrContent').style.display='none';return;}
-  document.getElementById('ovrEmpty').style.display='none'; document.getElementById('ovrContent').style.display='block';
-  const sum=drvSum(src),maxS=Math.max(...sum.map(d=>d.totalSec),1),avgS=sum.reduce((a,d)=>a+d.totalSec,0)/sum.length,avgP=(avgS/maxS*100).toFixed(1);
-  const live=lStints.length>0;
-  document.getElementById('ovrLiveSection').style.display=live?'block':'none';
-  if(live) rndrOvrLive(sum);
-  document.getElementById('ovrCards').innerHTML=sum.map(d=>{
-    const pct=(d.totalSec/maxS*100).toFixed(1), dev=d.totalSec-avgS;
-    const devStr=Math.abs(dev)>30?(' \u2013 '+(dev>0?'+':'-')+Math.round(Math.abs(dev)/60)+'m vs snitt'):'';
-    const chips=d.stints.map(st=>{
-      const rnd=Math.floor(st.dur/(st.lapT||40)),done=st.status==='done',act2=st.status==='active';
-      return '<span class="chip" style="'+(act2?('border-color:'+d.col+';border-width:2px'):(done?'opacity:.45':''))+'"><span class="chip-t">Stint '+st.sn+' \u00b7 '+Math.round(st.dur/60)+'m \u00b7 ~'+rnd+' runder</span><span class="chip-s">\u26d1 Pit-skilt: '+fm(st.signAt)+' \u2192 Pit inn: '+fm(st.end)+'</span></span>';
-    }).join('');
-    return '<div class="dcard" role="listitem"><div class="dcard-hd"><div style="width:14px;height:14px;border-radius:50%;background:'+d.col+';flex-shrink:0;border:2px solid '+d.col+'"></div><div class="dcard-nm">'+d.name+'</div><span class="dcard-tag" style="background:'+d.col+'22;color:'+d.col+';border-color:'+d.col+'">'+d.stintCount+' stint'+(d.stintCount!==1?'s':'')+'</span></div>'
-      +'<div class="dm"><div class="dmi"><div class="dmv">'+fmS(d.totalSec)+'</div><div class="dml">Total kj\u00f8retid</div></div><div class="dmi"><div class="dmv">'+d.totalRnd+'</div><div class="dml">Forv. runder</div></div><div class="dmi"><div class="dmv">'+d.stintCount+'</div><div class="dml">Stints</div></div></div>'
-      +'<div class="dbw"><div class="dbl"><span style="color:#555">'+Math.round(d.totalSec/60)+' min'+devStr+'</span><span style="color:#E8002D;font-size:9px">\u2191 snitt</span></div><div class="db" role="progressbar" aria-valuenow="'+Math.round(d.totalSec/60)+'" aria-valuemin="0" aria-valuemax="'+Math.round(maxS/60)+'"><div class="dbf" style="width:'+pct+'%;background:'+d.col+'"></div><div class="dba" style="left:'+avgP+'%"></div></div></div>'
-      +'<div class="chips">'+(chips||'<span style="font-size:11px;color:#555">Ingen stints tildelt</span>')+'</div></div>';
-  }).join('');
-  document.getElementById('ovrTable').innerHTML=sum.map(d=>{
-    const pct=(d.totalSec/maxS*100).toFixed(1);
-    return '<tr><td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:'+d.col+';display:inline-block;flex-shrink:0"></span>'+d.name+'</span></td>'
-      +'<td style="text-align:right;color:#fff">'+fmS(d.totalSec)+'</td><td style="text-align:right;color:#fff">'+d.totalRnd+'</td><td style="text-align:right;color:#fff">'+d.stintCount+'</td>'
-      +'<td><div style="height:9px;background:#111;border-radius:4px;overflow:hidden;position:relative;border:1px solid #2A2A2A"><div style="height:100%;width:'+pct+'%;background:'+d.col+';border-radius:4px"></div><div style="position:absolute;top:0;left:'+avgP+'%;width:2px;height:100%;background:#E8002D;opacity:.8"></div></div></td></tr>';
-  }).join('');
-}
-
-function rndrOvrLive(sum){
-  const maxP=Math.max(...sum.map(d=>d.totalSec),1);
-  document.getElementById('ovrLiveCards').innerHTML=sum.map(d=>{
-    const myD=lStints.filter(s=>s.type==='drive'&&s.di===d.i&&s.status==='done');
-    const myA=lStints.find(s=>s.type==='drive'&&s.di===d.i&&s.status==='active');
-    const dS=myD.reduce((a,s)=>a+(s.end-s.start),0), aS=myA?lElap-(myA.aStart||myA.start):0;
-    const tot=dS+aS, rN=myD.reduce((a,s)=>a+Math.floor((s.end-s.start)/(s.lT||d.lt||40)),0)+(myA?Math.floor(aS/(myA.lT||d.lt||40)):0);
-    const np2=(Math.min(100,tot/maxP*100)).toFixed(1), pp2=(d.totalSec/maxP*100).toFixed(1);
-    return '<div class="ldp" style="'+(myA?('border-color:'+d.col+';border-width:2px'):'')+'"><div style="width:12px;height:12px;border-radius:50%;background:'+d.col+';flex-shrink:0;margin-top:3px;border:2px solid '+d.col+(myA?(';box-shadow:0 0 8px '+d.col+'88'):'')+'"></div>'
-      +'<div class="ldp-b"><div class="ldp-n">'+d.name+(myA?'<span class="badge ba">Kj\u00f8rer n\u00e5</span>':'')+'</div>'
-      +'<div style="display:flex;gap:14px;font-size:11px;color:#555;margin-top:4px;flex-wrap:wrap"><span>'+fmS(tot)+' <span style="color:#2A2A2A">/ '+fmS(d.totalSec)+'</span></span><span>'+rN+' <span style="color:#2A2A2A">/ ~'+d.totalRnd+'</span></span><span>'+d.stintCount+' stints</span></div>'
-      +'<div class="ldb" role="progressbar" aria-valuenow="'+Math.round(tot/60)+'" aria-valuemin="0" aria-valuemax="'+Math.round(d.totalSec/60)+'" aria-label="'+Math.round(tot/60)+' av '+Math.round(d.totalSec/60)+' min"><div class="ldbf" style="width:'+np2+'%;background:'+d.col+'"></div><div class="ldbp" style="left:'+pp2+'%"></div></div>'
-      +'</div></div>';
-  }).join('');
-}
-
-
-// ═══════════════════════════════════════════════════════════════
-// LOGG – lagre og hente strategier (maks 5, localStorage)
-// ═══════════════════════════════════════════════════════════════
-const LOGG_KEY = 'gk_logg';
-const LOGG_MAX = 5;
-
-function loadLogg(){
-  try{ return JSON.parse(localStorage.getItem(LOGG_KEY)||'[]'); }
-  catch(e){ return []; }
-}
-function saveLogg(entries){
-  try{ localStorage.setItem(LOGG_KEY, JSON.stringify(entries)); }catch(e){}
-}
-
-function saveStrategy(){
-  if(!stints || stints.length===0){
-    alert('Beregn en strategi først.');
-    return;
-  }
-  const entries = loadLogg();
-  const now = new Date();
-  const dateStr = now.toLocaleDateString('nb-NO',{day:'2-digit',month:'2-digit',year:'numeric'});
-  const timeStr = now.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'});
-
-  const entry = {
-    id: Date.now(),
-    name: dateStr + ' ' + timeStr,
-    savedAt: now.toISOString(),
-    mode: mlbl(),
-    bsum: bsum(),
-    rSec,
-    minP,
-    pitSec,
-    lastBI,
-    lastBD,
-    drivers: drivers.map(d=>({name:d.name, lt:d.lt})),
-    kA, kB,
-    stints: stints.map(s=>({
-      type:s.type, di:s.di, name:s.name||'', sn:s.sn||0,
-      start:s.start, end:s.end, lT:s.lT||0, signAt:s.signAt||0,
-      bc:s.bc||0, num:s.num||0
-    }))
+  // Save to KV
+  const kvSave = async () => {
+    if (!kvKey.trim()) return;
+    setKvStatus("saving");
+    try {
+      const res = await fetch(`${KV_API}/?key=${encodeURIComponent(kvKey.trim())}`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(collectState()),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setKvStatus("saved");
+      setKvLastSaved(new Date());
+      setTimeout(() => setKvStatus(""), 3000);
+    } catch (err) {
+      console.error("KV save error:", err);
+      setKvStatus("error");
+      setTimeout(() => setKvStatus(""), 5000);
+    }
   };
 
-  // Prepend new entry; if over max, remove oldest
-  entries.unshift(entry);
-  if(entries.length > LOGG_MAX) entries.splice(LOGG_MAX);
-  saveLogg(entries);
+  // Load from KV and restore all state
+  const kvLoad = async () => {
+    if (!kvKey.trim()) return;
+    setKvStatus("loading");
+    try {
+      const res = await fetch(`${KV_API}/?key=${encodeURIComponent(kvKey.trim())}`);
+      if (res.status === 404) { setKvStatus("notfound"); setTimeout(()=>setKvStatus(""),4000); return; }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
 
-  ann('Strategi lagret: ' + entry.name);
-  rndrLogg();
-  // Switch to Logg tab
-  document.querySelector('.tab[data-t="logg"]').click();
-}
+      // Restore setup
+      if (data.setup) {
+        const s = data.setup;
+        if (s.numDrivers)   setNumDrivers(s.numDrivers);
+        if (s.mode)         setMode(s.mode);
+        if (s.boostInterval !== undefined) setBoostInterval(s.boostInterval);
+        if (s.boostDuration !== undefined) setBoostDuration(s.boostDuration);
+        if (s.kart1 !== undefined) setKart1(s.kart1);
+        if (s.kart2 !== undefined) setKart2(s.kart2);
+        if (s.drivers)      setDrivers(s.drivers);
+      }
+      // Restore race
+      if (data.race) {
+        const r = data.race;
+        if (r.schedule)         setSchedule(r.schedule);
+        if (r.completedStints)  setCompleted(r.completedStints);
+        if (r.actualLaps)       setActualLaps(r.actualLaps);
+        if (r.adjustLog)        setAdjustLog(r.adjustLog);
+        if (r.raceStarted !== undefined) setRaceStarted(r.raceStarted);
+        if (r.raceStartTime)    setRaceStartTime(r.raceStartTime);
+        // If race was active, go to race page
+        if (r.schedule && r.schedule.length > 0) setPage("race");
+      }
 
-function deleteLoggEntry(id){
-  const entries = loadLogg().filter(e=>e.id!==id);
-  saveLogg(entries);
-  rndrLogg();
-}
+      setKvStatus("loaded");
+      setTimeout(() => setKvStatus(""), 3000);
+    } catch (err) {
+      console.error("KV load error:", err);
+      setKvStatus("error");
+      setTimeout(() => setKvStatus(""), 5000);
+    }
+  };
 
-function loadStrategy(id){
-  const entries = loadLogg();
-  const entry = entries.find(e=>e.id===id);
-  if(!entry){ alert('Strategi ikke funnet.'); return; }
+  // Auto-save every 60 seconds when race is active
+  useEffect(() => {
+    if (!raceStarted || !kvKey.trim() || KV_API.includes("DIN-WORKER")) return;
+    const id = setInterval(() => kvSave(), 60000);
+    return () => clearInterval(id);
+  }, [raceStarted, kvKey, schedule, completedStints, actualLaps, adjustLog]);
 
-  // Restore all state
-  mode = entry.mode==='Nitro'?'speed5':entry.mode.includes('Boost')?'boost':'speed4';
-  rSec = entry.rSec;
-  minP = entry.minP;
-  pitSec = entry.pitSec;
-  lastBI = entry.lastBI||10;
-  lastBD = entry.lastBD||60;
-  kA = entry.kA;
-  kB = entry.kB;
-  drivers = entry.drivers.map(d=>({name:d.name, lt:d.lt}));
-  boostW = mkBW(lastBI, lastBD, rSec);
+  // Live clock
+  useEffect(() => {
+    if (!raceStarted) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [raceStarted]);
 
-  stints = entry.stints.map(s=>({...s, status:'future', aStart:null, rep:false}));
+  const raceElapsed = raceStarted ? (now - raceStartTime) / 60000 : 0;
 
-  // Update UI fields
-  document.getElementById('raceDur').value = Math.round(rSec/60);
-  document.getElementById('minPits').value = minP;
-  document.getElementById('pitDur').value = pitSec;
-  document.getElementById('bi').value = lastBI;
-  document.getElementById('bd').value = lastBD;
-  if(kA) document.getElementById('kA').value = kA;
-  if(kB) document.getElementById('kB').value = kB;
+  // ── Initial build ──
+  const buildInitial = useCallback(() => {
+    const sched = buildRemainingStints({
+      drivers, mode, kart1, kart2, boostInterval, boostDuration,
+      raceClockNow:     0,
+      driverTimeUsed:   Array(drivers.length).fill(0),
+      driverStintsUsed: Array(drivers.length).fill(0),
+      completedCount:   0,
+      pitsDone:         0,
+    });
+    setSchedule(sched);
+    setCompleted([]);
+    setAdjustLog([]);
+    setActualLaps({});
+    setRaceStarted(false);
+    setRaceStartTime(null);
+    setPage("race");
+    setActiveTab("live");
+  }, [drivers, mode, kart1, kart2, boostInterval, boostDuration]);
 
-  // Update mode buttons
-  document.querySelectorAll('.mb').forEach(b=>{
-    const isActive = (b.dataset.m===mode);
-    b.setAttribute('aria-pressed', isActive?'true':'false');
+  const startRace = () => { setRaceStarted(true); setRaceStartTime(Date.now()); };
+
+  // Derived
+  const currentStintIdx = completedStints.length;
+  const currentStint    = schedule[currentStintIdx];
+  const nextStint       = schedule[currentStintIdx + 1];
+  const pitsDone        = completedStints.length; // stints done = pits done (except when 0)
+
+  const currentStintStart = currentStint
+    ? (currentStint.actualStart != null ? currentStint.actualStart : currentStint.startTime)
+    : null;
+  const timeInStint    = raceStarted && currentStintStart != null ? raceElapsed - currentStintStart : 0;
+  // Pit board triggers when race clock passes the planned pitBoardAt time for this stint
+  const pitBoardThreshold = currentStint?.pitBoardAt ?? null;
+  const showPitBoard   = raceStarted && currentStint && pitBoardThreshold != null && raceElapsed >= pitBoardThreshold;
+  const pitBoardUrgent = raceStarted && currentStint && pitBoardThreshold != null &&
+    raceElapsed >= pitBoardThreshold + (drivers[currentStint?.driver]?.lapTime / 60 || 1);
+
+  const parseManualTime = (str) => {
+    if (!str.trim()) return null;
+    const parts = str.split(":");
+    if (parts.length === 2) return (parseInt(parts[0]) || 0) + (parseInt(parts[1]) || 0) / 60;
+    return parseFloat(str) || null;
+  };
+
+  // ── Record pit: fører kjørte ut ──
+  // actualExitMin = race clock when next driver exits pit
+  const recordPitExit = (actualExitMin, note = "") => {
+    if (!currentStint) return;
+
+    // Determine actual duration of the stint that just ended
+    // Stint started at currentStintStart, next driver out at actualExitMin - PIT_DURATION_MIN
+    // (driver was in pit from pitEntry to actualExitMin)
+    const actualPitEntry  = actualExitMin - PIT_DURATION_MIN;
+    const actualDuration  = actualPitEntry - currentStintStart;
+
+    const donestint = {
+      ...currentStint,
+      isCompleted:   true,
+      isPlanned:     false,
+      actualStart:   currentStintStart,
+      actualEnd:     actualPitEntry,
+      actualDuration: parseFloat(Math.max(0, actualDuration).toFixed(3)),
+    };
+
+    const newCompleted = [...completedStints, donestint];
+
+    // Recompute remaining stints
+    const driverTimeUsed   = Array(drivers.length).fill(0);
+    const driverStintsUsed = Array(drivers.length).fill(0);
+    newCompleted.forEach(c => {
+      driverTimeUsed[c.driver]   += c.actualDuration ?? c.duration;
+      driverStintsUsed[c.driver] += 1;
+    });
+
+    const remaining = buildRemainingStints({
+      drivers, mode, kart1, kart2, boostInterval, boostDuration,
+      raceClockNow:     actualExitMin,
+      driverTimeUsed,
+      driverStintsUsed,
+      completedCount:   newCompleted.length,
+      pitsDone:         newCompleted.length,
+    });
+
+    const newSchedule = [...newCompleted, ...remaining];
+    setSchedule(newSchedule);
+    setCompleted(newCompleted);
+    setManualTime("");
+
+    // Build adjustment log entry
+    const plannedEntry = currentStint.pitEntry;
+    const delta        = plannedEntry != null ? actualPitEntry - plannedEntry : null;
+    const extraPits    = remaining.length - (schedule.length - currentStintIdx - 1);
+    setAdjustLog(prev => [...prev, {
+      stint:       currentStint.stint,
+      driver:      currentStint.driverName,
+      planned:     plannedEntry,
+      actual:      actualPitEntry,
+      delta,
+      newStints:   remaining.length,
+      extraPits:   extraPits > 0 ? extraPits : 0,
+      note,
+      timestamp:   fmt(raceElapsed),
+    }]);
+  };
+
+  const handleNumDrivers = (n) => {
+    setNumDrivers(n);
+    setDrivers(prev => {
+      const next = [...prev];
+      while (next.length < n) next.push({ name: `Fører ${next.length + 1}`, lapTime: 58, lapTimeStr: "58,0" });
+      return next.slice(0, n);
+    });
+  };
+  const updateDriver = (i, f, v) =>
+    setDrivers(prev => prev.map((d, idx) => idx === i ? { ...d, [f]: v } : d));
+
+  // Parse lap time string like "36,1" or "36.1" or "36" → seconds as float
+  const parseLapTime = (str) => {
+    if (!str && str !== 0) return null;
+    const normalized = String(str).replace(",", ".");
+    const val = parseFloat(normalized);
+    return isNaN(val) ? null : Math.max(10, Math.min(180, val));
+  };
+
+  // Format lap time float back to display string with comma
+  const fmtLapTime = (sec) => {
+    if (sec == null) return "";
+    // Show one decimal only if needed
+    const rounded = Math.round(sec * 10) / 10;
+    return String(rounded).replace(".", ",");
+  };
+
+  const bw = getBoostWindows(mode, boostInterval, boostDuration);
+
+  const driverSummary = drivers.map((d, i) => {
+    const stints = schedule.filter(s => s.driver === i);
+    const done   = stints.filter(s => s.isCompleted);
+    return {
+      name:      d.name,
+      totalTime: stints.reduce((sum, s) => sum + (s.actualDuration ?? s.duration), 0),
+      stints:    stints.length,
+      done:      done.length,
+      totalLaps: stints.reduce((sum, s) => sum + (actualLaps[s.stint] ?? s.estimatedLaps ?? 0), 0),
+    };
   });
-  document.getElementById('bbox').style.display = mode==='boost'?'block':'none';
 
-  // Update driver count selector and fields
-  setCount(drivers.length);
-  // Fill in driver names and lap times
-  drivers.forEach((d,i)=>{
-    const nameEl=document.getElementById('d'+i+'n');
-    const lapEl=document.getElementById('d'+i+'l');
-    if(nameEl) nameEl.value=d.name;
-    if(lapEl) lapEl.value=d.lt.toFixed(1).replace('.',',');
-  });
+  // Helper: effective laps for a stint (manual override wins)
+  const effLaps = (s) => actualLaps[s.stint] ?? s.estimatedLaps ?? 0;
+  const totalEstLaps   = schedule.reduce((sum, s) => sum + (s.estimatedLaps || 0), 0);
+  const totalEffLaps   = schedule.reduce((sum, s) => sum + effLaps(s), 0);
+  const hasLapOverride = Object.keys(actualLaps).length > 0;
 
-  // Render setup tab
-  rndrSetup(stints);
-  document.getElementById('res').style.display='block';
+  const totalPitsPlanned = schedule.length - 1;
+  const warningPits      = totalPitsPlanned < MIN_TOTAL_PITS;
 
-  // Reset live state
-  lStints=[]; lRun=false; lElap=0; elog=[];
-  clearInterval(lTimer); lTimer=null;
-  document.getElementById('lContent').style.display='none';
-  document.getElementById('lEmpty').style.display='block';
+  // ── SETUP PAGE ──────────────────────────────────────────────────────────────
+  if (page === "setup") return (
+    <div style={S.page}>
+      <A11yStyles />
+      <a href="#main-content" className="skip-link">Hopp til hovedinnhold</a>
+      <AppHeader />
+      <div style={{ maxWidth:680, margin:"0 auto", padding:"20px 16px", display:"flex", flexDirection:"column", gap:14 }}>
 
-  ann('Strategi lastet: ' + entry.name);
-  // Switch to setup tab
-  document.querySelector('.tab[data-t="setup"]').click();
+        <Card title="LØPSMODUS">
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom: mode==="boost"?14:0 }}>
+            {[
+              ["speed4",  "🏎 Speed 4",          "Uten boost"],
+              ["boost",   "⚡ Speed 4 + Boost",   "Konfigurerbar boost"],
+              ["nboost",  "🏁 Speed 5",           "Uten boost"],
+            ].map(([v,l,s]) => (
+              <ModeBtn key={v} active={mode===v} onClick={()=>setMode(v)} label={l} sub={s} />
+            ))}
+          </div>
+
+          {mode === "boost" && (
+            <div style={{ background:"#0a0a0f", borderRadius:6, padding:"14px 14px 10px", border:"1px solid #2a2a3a" }}>
+              <div style={{ fontSize:12, color:COL_ACCENT, letterSpacing:2, marginBottom:12 }}>⚡ BOOST-KONFIGURASJON</div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+
+                {/* Boost interval */}
+                <div>
+                  <label htmlFor="boost-interval" style={{ display:"block", fontSize:12, color:TXT_SECONDARY, marginBottom:6 }}>Boost hvert X minutt</label>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <input id="boost-interval" type="number" min={5} max={30} step={1} value={boostInterval}
+                      aria-describedby="boost-interval-hint"
+                      onChange={e => setBoostInterval(Math.max(5, Math.min(30, parseInt(e.target.value)||10)))}
+                      style={{ ...S.input, width:72, fontSize:18, fontWeight:900, color:COL_ACCENT, textAlign:"center", padding:"6px 4px" }} />
+                    <span style={{ fontSize:12, color:TXT_MUTED }} aria-hidden="true">min</span>
+                  </div>
+                  <div id="boost-interval-hint" style={{ fontSize:12, color:TXT_MUTED, marginTop:4 }}>
+                    → {Math.floor((RACE_DURATION - 1) / boostInterval)} boosts i løpet
+                  </div>
+                </div>
+
+                {/* Boost duration */}
+                <div>
+                  <label htmlFor="boost-duration" style={{ display:"block", fontSize:12, color:TXT_SECONDARY, marginBottom:6 }}>Boost varer i X sekunder</label>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <input id="boost-duration" type="number" min={15} max={180} step={5} value={Math.round(boostDuration * 60)}
+                      aria-describedby="boost-duration-hint"
+                      onChange={e => setBoostDuration(Math.max(15, Math.min(180, parseInt(e.target.value)||60)) / 60)}
+                      style={{ ...S.input, width:72, fontSize:18, fontWeight:900, color:COL_ACCENT, textAlign:"center", padding:"6px 4px" }} />
+                    <span style={{ fontSize:12, color:TXT_MUTED }} aria-hidden="true">sek</span>
+                  </div>
+                  <div id="boost-duration-hint" style={{ fontSize:12, color:TXT_MUTED, marginTop:4 }}>
+                    = {boostDuration >= 1 ? `${boostDuration.toFixed(1)} min` : `${Math.round(boostDuration*60)} sek`}
+                  </div>
+                </div>
+              </div>
+
+              {/* Preview boost windows */}
+              <div style={{ marginTop:12, fontSize:12, color:TXT_MUTED }}>
+                Boost-vindu: {getBoostWindows("boost", boostInterval, boostDuration).slice(0,6).map(b =>
+                  `${fmt(b.start)}–${fmt(b.end)}`
+                ).join("  ·  ")}{getBoostWindows("boost", boostInterval, boostDuration).length > 6 ? "  …" : ""}
+              </div>
+            </div>
+          )}
+        </Card>
+
+        <Card title="ANTALL FØRERE">
+          <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+            {[3,4,5,6,7,8].map(n => <NumBtn key={n} active={numDrivers===n} onClick={()=>handleNumDrivers(n)} label={n} />)}
+          </div>
+        </Card>
+
+        <Card title="KARTNUMMER">
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            {[
+              { id:"kart-a", label:"Kart A", sub:"Oddetall stint (1, 3, 5…)", val:kart1, set:setKart1 },
+              { id:"kart-b", label:"Kart B", sub:"Partall stint (2, 4, 6…)",  val:kart2, set:setKart2 },
+            ].map(k => (
+              <div key={k.label} style={{ background:"#111", borderRadius:6, padding:"12px 14px",
+                border:"1px solid #2a2a3a" }}>
+                <label htmlFor={k.id} style={{ display:"block", fontSize:13, color:COL_DANGER, letterSpacing:2, marginBottom:8, fontWeight:700 }}>{k.label}</label>
+                <input
+                  id={k.id}
+                  type="number" min={1} max={99}
+                  placeholder="–"
+                  aria-describedby={`${k.id}-hint`}
+                  value={k.val}
+                  onChange={e => {
+                    const v = e.target.value;
+                    if (v === "" || (parseInt(v) >= 1 && parseInt(v) <= 99)) k.set(v);
+                  }}
+                  style={{ ...S.input, width:"100%", fontSize:22, fontWeight:900,
+                    color:COL_ACCENT, textAlign:"center", padding:"8px 4px" }}
+                />
+                <div id={`${k.id}-hint`} style={{ fontSize:12, color:TXT_MUTED, marginTop:6, textAlign:"center" }}>{k.sub}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card title="FØRER-OPPSETT">
+          {drivers.map((d, i) => {
+            const nameId = `driver-name-${i}`;
+            const lapId  = `driver-lap-${i}`;
+            return (
+            <div key={i} style={{ marginBottom:12 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+                <Dot color={COLORS[i]} label={`Fører ${i+1} farge`} />
+                <label htmlFor={nameId} className="sr-only">Navn på fører {i+1}</label>
+                <input id={nameId} value={d.name} onChange={e=>updateDriver(i,"name",e.target.value)} style={S.input} />
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:8, paddingLeft:18 }}>
+                <label htmlFor={lapId} style={{ fontSize:12, color:TXT_MUTED, minWidth:120 }}>
+                  Rundetid (sek)
+                </label>
+                <input
+                  id={lapId}
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="36,1"
+                  aria-describedby={`${lapId}-hint`}
+                  value={d.lapTimeStr ?? fmtLapTime(d.lapTime)}
+                  onChange={e => {
+                    const raw = e.target.value;
+                    const parsed = parseLapTime(raw);
+                    updateDriver(i, "lapTimeStr", raw);
+                    if (parsed != null) updateDriver(i, "lapTime", parsed);
+                  }}
+                  onBlur={e => {
+                    const parsed = parseLapTime(e.target.value);
+                    if (parsed != null) {
+                      updateDriver(i, "lapTimeStr", fmtLapTime(parsed));
+                      updateDriver(i, "lapTime", parsed);
+                    }
+                  }}
+                  style={{ ...S.input, width:80, color:COL_ACCENT, fontWeight:700,
+                    letterSpacing:1, textAlign:"center" }}
+                />
+                <span id={`${lapId}-hint`} style={{ fontSize:12, color:TXT_MUTED }}>
+                  = {(() => {
+                    const t = d.lapTime;
+                    const m = Math.floor(t / 60);
+                    const s = (t % 60).toFixed(1).replace(".", ",");
+                    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+                  })()} · {(d.lapTime / 60).toFixed(3)} min
+                </span>
+              </div>
+            </div>
+            );
+          })}
+        </Card>
+
+        <Card title="REGLER">
+          <div style={{ fontSize:11, color:TXT_MUTED, lineHeight:2 }}>
+            <div>⏱ Løpslengde: <b style={{color:TXT_SECONDARY}}>120 min</b></div>
+            <div>🛑 Min. pitstop: <b style={{color:TXT_SECONDARY}}>7 (= 8 stints)</b></div>
+            <div>⏳ Pitstop-tid: <b style={{color:TXT_SECONDARY}}>50 sek</b></div>
+            <div>🪧 Pit-skilt <b style={{color:COL_WARNING}}>90 sek før planlagt stint-slutt</b> → fører kjører én runde til</div>
+            <div>⚠️ Maks stinttid: <b style={{color:COL_DANGER}}>20:00</b></div>
+            {mode === "boost"
+              ? <div>⚡ Boost: <b style={{color:COL_ACCENT}}>hvert {boostInterval} min, {Math.round(boostDuration*60)} sek varighet</b></div>
+              : <div>🚫 Ingen boost aktivert</div>
+            }
+            <div>👤 Stint: <b style={{color:TXT_SECONDARY}}>7–20 min</b></div>
+          </div>
+        </Card>
+
+        <button onClick={buildInitial} aria-label="Beregn strategi basert på oppgitte verdier" style={S.primaryBtn}><span aria-hidden="true">⚡ </span>BEREGN STRATEGI</button>
+
+        {/* ── KV Sync Panel ── */}
+        <KvPanel kvKey={kvKey} setKvKey={setKvKey} kvStatus={kvStatus}
+          kvLastSaved={kvLastSaved} kvSave={kvSave} kvLoad={kvLoad}
+          kvPanel={kvPanel} setKvPanel={setKvPanel} kvApi={KV_API} />
+      </div>
+    </div>
+  );
+
+  // ── RACE PAGE ────────────────────────────────────────────────────────────────
+  return (
+    <div style={S.page}>
+      <A11yStyles />
+      <a href="#main-content" className="skip-link">Hopp til hovedinnhold</a>
+      <AppHeader />
+
+      {kvPanel && (
+        <KvPanel kvKey={kvKey} setKvKey={setKvKey} kvStatus={kvStatus}
+          kvLastSaved={kvLastSaved} kvSave={kvSave} kvLoad={kvLoad}
+          kvPanel={kvPanel} setKvPanel={setKvPanel} kvApi={KV_API} />
+      )}
+
+      {/* Pit board alert */}
+      {showPitBoard && (
+        <div role="alert" aria-live="assertive" style={{ background: pitBoardUrgent ? "#c0392b" : "#a05400",
+          padding:"12px 24px", textAlign:"center", fontSize:14,
+          fontWeight:900, letterSpacing:2, borderBottom:"2px solid rgba(0,0,0,.3)", color:"#fff" }}>
+          <span aria-hidden="true">🪧 </span>PIT-SKILT UT! — {currentStint?.driverName?.toUpperCase()} — KJØR ÉN RUNDE TIL, SÅ PIT!
+          {pitBoardUrgent && <span style={{ marginLeft:16 }}><span aria-hidden="true">⚠️ </span>BUFFER-RUNDE — PIT VED NESTE INNGANG!</span>}
+        </div>
+      )}
+
+      {/* Pit rule warning */}
+      {warningPits && raceStarted && (
+        <div role="status" aria-live="polite" style={{ background:"#1a0a00", borderBottom:"1px solid #FF4136",
+          padding:"8px 24px", fontSize:13, color:COL_WARNING, letterSpacing:1, textAlign:"center" }}>
+          <span aria-hidden="true">⚠️ </span>Strategien har kun {totalPitsPlanned} pitstop — regelkrav er minimum {MIN_TOTAL_PITS}. Sjekk strategi!
+        </div>
+      )}
+
+      {/* Race clock bar */}
+      <div style={{ background:"#0d0d14", borderBottom:"1px solid #1a1a2e",
+        padding:"10px 20px", display:"flex", alignItems:"center", gap:20, flexWrap:"wrap" }}>
+        <ClockBlock label="LØPSTID"   value={fmt(raceElapsed)} color={raceElapsed>110?COL_DANGER:COL_ACCENT} />
+        <ClockBlock label="GJENSTÅR"  value={fmt(Math.max(0,RACE_DURATION-raceElapsed))} color=COL_SUCCESS />
+        {currentStint && (
+          <ClockBlock label="TID I STINT" value={fmt(timeInStint)}
+            color={showPitBoard?COL_DANGER:pitBoardThreshold!=null&&timeInStint>=(pitBoardThreshold-currentStintStart-0.5)?COL_WARNING:TXT_PRIMARY} />
+        )}
+        <div style={{ fontSize:12, color:TXT_MUTED }}>
+          Pit: <b style={{color: pitsDone<MIN_TOTAL_PITS?COL_WARNING:COL_SUCCESS}}>{pitsDone}</b>/{MIN_TOTAL_PITS} min
+        </div>
+        <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
+          {!raceStarted
+            ? <button onClick={startRace} aria-label="Start løpsklokken" style={S.startBtn}><span aria-hidden="true">▶ </span>START LØP</button>
+            : <span role="status" style={{ fontSize:12, color:COL_SUCCESS, letterSpacing:2, alignSelf:"center" }}><span aria-hidden="true">● </span>LØPET PÅGÅR</span>
+          }
+          <button onClick={() => setKvPanel(v => !v)}
+            aria-label="Åpne synkroniseringspanel"
+            title={kvLastSaved ? `Sist lagret ${kvLastSaved.toLocaleTimeString("no")}` : "Synkroniser med sky"}
+            style={{ background: kvStatus==="saved"||kvStatus==="loaded" ? "#0a2a0a"
+              : kvStatus==="error"||kvStatus==="notfound" ? "#2a0a0a" : "#111",
+              border:`1px solid ${kvStatus==="saved"||kvStatus==="loaded" ? COL_SUCCESS
+                : kvStatus==="error"||kvStatus==="notfound" ? COL_DANGER : TXT_MUTED}`,
+              color: kvStatus==="saved"||kvStatus==="loaded" ? COL_SUCCESS
+                : kvStatus==="error"||kvStatus==="notfound" ? COL_DANGER : TXT_PRIMARY,
+              padding:"10px 14px", borderRadius:6, cursor:"pointer",
+              fontFamily:"'Courier New',monospace", fontSize:12, letterSpacing:1, minHeight:44 }}>
+            {kvStatus==="saving"  ? "⏳ Lagrer…"
+            :kvStatus==="loading" ? "⏳ Henter…"
+            :kvStatus==="saved"   ? "✓ Lagret"
+            :kvStatus==="loaded"  ? "✓ Hentet"
+            :kvStatus==="error"   ? "✗ Feil"
+            :kvStatus==="notfound"? "✗ Ikke funnet"
+            :"☁ Sky"}
+          </button>
+          <button onClick={()=>setPage("setup")} aria-label="Gå tilbake til oppsett-siden" style={S.backBtn}><span aria-hidden="true">← </span>OPPSETT</button>
+        </div>
+      </div>
+
+      <div style={{ maxWidth:1300, margin:"0 auto", padding:14 }}>
+        {/* Tabs */}
+        <div role="tablist" aria-label="Strategi-visninger" style={{ display:"flex", gap:2, borderBottom:"2px solid #1a1a2e", marginBottom:14 }}>
+          {[["live","🔴 LIVE"],["strategy","📋 STRATEGI"],["timeline","⏱ TIDSLINJE"],
+            ["summary","📊 OVERSIKT"],["log","📝 JUSTERINGER"]].map(([id,label]) => (
+            <TabBtn key={id} id={`tab-${id}`} active={activeTab===id} onClick={()=>setActiveTab(id)} label={label} />
+          ))}
+        </div>
+
+        {/* ─── LIVE TAB ─────────────────────────────────────────────────────── */}
+        {activeTab === "live" && (
+          <div role="tabpanel" aria-labelledby="tab-live" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+
+            {/* Current stint */}
+            <div style={{ background:"#111", borderRadius:8, padding:18,
+              border:`2px solid ${currentStint ? COLORS[currentStint.driver] : "#1a1a2e"}`,
+              display:"flex", flexDirection:"column", gap:0 }}>
+              <div style={{ fontSize:12, letterSpacing:3, color:COL_DANGER, marginBottom:10 }}>
+                NÅVÆRENDE STINT #{currentStintIdx+1}
+              </div>
+              {currentStint ? <>
+                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+                  <Dot color={COLORS[currentStint.driver]} size={14} />
+                  <span style={{ fontSize:18, fontWeight:900 }}>{currentStint.driverName}</span>
+                  {currentStint.kartNum && (
+                    <span style={{ marginLeft:"auto", background:"#2a0a4e",
+                      border:`2px solid ${currentStint.stint%2===1?"#DA77F2":COL_SUCCESS}`,
+                      color: currentStint.stint%2===1?"#DA77F2":COL_SUCCESS,
+                      borderRadius:6, padding:"4px 14px", fontSize:18, fontWeight:900,
+                      letterSpacing:2 }}>
+                      🏎 #{currentStint.kartNum}
+                    </span>
+                  )}
+                </div>
+                <Row label="Planlagt varighet"  value={fmt(currentStint.duration)}          color=COL_ACCENT />
+                <Row label="🪧 Pit-skilt ved"   value={fmt(currentStint.pitBoardAt)}        color=COL_WARNING />
+                <Row label="Planlagt pit inn"   value={currentStint.pitEntry?fmt(currentStint.pitEntry):"Siste"} color=COL_DANGER />
+                <Row label="Planlagt pit ut"    value={currentStint.pitExit?fmt(currentStint.pitExit):"—"}      color=COL_SUCCESS />
+                <Row label="Est. runder"        value={currentStint.estimatedLaps} />
+
+                {/* Progress bar */}
+                {raceStarted && (
+                  <div style={{ marginTop:14 }}>
+                    <div style={{ fontSize:12, color:TXT_MUTED, letterSpacing:2, marginBottom:4 }}>STINT FREMGANG</div>
+                    <div style={{ background:"#0a0a0f", borderRadius:4, height:12, overflow:"hidden", position:"relative" }}>
+                      <div style={{
+                        height:"100%",
+                        width:`${Math.min(100,(timeInStint/MAX_STINT)*100)}%`,
+                        background: showPitBoard?COL_DANGER:timeInStint>=(currentStint.duration-PIT_BOARD_BEFORE-0.5)?COL_WARNING:COLORS[currentStint.driver],
+                        transition:"width .5s", borderRadius:4,
+                      }} />
+                      {/* Pit board marker at 90s before planned end */}
+                      {currentStint.pitBoardAt != null && (
+                        <div style={{ position:"absolute",
+                          left:`${((currentStint.pitBoardAt - currentStintStart)/MAX_STINT)*100}%`,
+                          top:0, bottom:0, width:2, background:COL_WARNING, opacity:.9 }} />
+                      )}
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:TXT_DISABLED, marginTop:2 }}>
+                      <span>0:00</span>
+                      <span style={{color:COL_WARNING}}><span aria-hidden="true">🪧 </span>Pit-skilt {fmt(currentStint.duration - PIT_BOARD_BEFORE)} (−90s)</span>
+                      <span style={{color:COL_DANGER}}>MAX {fmt(MAX_STINT)}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pit registration */}
+                {raceStarted && (
+                  <div style={{ marginTop:14, padding:12, background:"#0d0d14", borderRadius:6, border:"1px solid #2a2a3a" }}>
+                    <div style={{ fontSize:12, color:COL_WARNING, letterSpacing:2, marginBottom:4 }}>
+                      📝 REGISTRER NÅR NESTE FØRER KJØRER UT AV PIT
+                    </div>
+                    <div style={{ fontSize:12, color:TXT_MUTED, marginBottom:10, lineHeight:1.6 }}>
+                      Skriv inn løpstid (MM:SS) når neste fører kjører ut.
+                      Strategien reberegnes automatisk basert på faktisk timing.
+                    </div>
+
+                    {/* Adaptive impact preview */}
+                    {(() => {
+                      const planned = currentStint.pitEntry;
+                      if (!planned) return null;
+                      const t = parseManualTime(manualTime) !== null
+                        ? (parseManualTime(manualTime) + PIT_DURATION_MIN)
+                        : raceElapsed;
+                      const delta = t - (planned + PIT_DURATION_MIN);
+                      const early = delta < -0.5;
+                      const late  = delta >  0.5;
+                      if (!early && !late) return null;
+                      return (
+                        <div style={{ marginBottom:10, padding:"8px 10px", borderRadius:4,
+                          background: early?"#0a1a0a":"#1a0a00",
+                          border:`1px solid ${early?COL_SUCCESS:COL_WARNING}`,
+                          fontSize:12, color: early?COL_SUCCESS:COL_WARNING }}>
+                          {early
+                            ? `⬆ Tidlig pit (~${fmt(Math.abs(delta))} tidlig) → gjenværende stints får mer tid`
+                            : `⬇ Sen pit (~${fmt(delta)} sent) → gjenværende stints får kortere tid`
+                          }
+                          {late && Math.abs(delta) > 2
+                            ? " — kan utløse ekstra pitstop" : ""}
+                        </div>
+                      );
+                    })()}
+
+                    <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
+                      <label htmlFor="manual-time" className="sr-only">Manuell pit-tid (MM:SS)</label>
+                      <input id="manual-time" type="text" inputMode="numeric"
+                        placeholder={fmt(raceElapsed)} value={manualTime}
+                        aria-label="Manuell tid for når neste fører kjører ut, format MM:SS"
+                        onChange={e=>setManualTime(e.target.value)}
+                        style={{ width:80, background:"#111", border:"1px solid #2a2a3a",
+                          color:COL_ACCENT, padding:"8px 10px", borderRadius:4,
+                          fontSize:14, fontFamily:"inherit" }} />
+                      <button onClick={()=>{
+                        const t = parseManualTime(manualTime);
+                        const exitMin = t != null ? t : raceElapsed;
+                        recordPitExit(exitMin, manualTime ? `Manuell: ${manualTime}` : "");
+                      }} aria-label="Bekreft at fører er ute med oppgitt tid" style={S.confirmBtn}>
+                        <span aria-hidden="true">✓ </span>FØRER UTE
+                      </button>
+                      <button onClick={()=>recordPitExit(raceElapsed, "Nå-knapp")}
+                        aria-label={`Bekreft at fører er ute akkurat nå, klokken ${fmt(raceElapsed)}`}
+                        style={S.nowBtn}>
+                        <span aria-hidden="true">⏱ </span>NÅ ({fmt(raceElapsed)})
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </> : (
+                <div style={{ color:TXT_MUTED, fontSize:14, marginTop:20, textAlign:"center" }}>
+                  Løpet er fullført! 🏁<br/>
+                  <span style={{fontSize:11}}>Pitstop gjennomført: {pitsDone} / min {MIN_TOTAL_PITS}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Next stint */}
+            <div style={{ background:"#111", borderRadius:8, padding:18,
+              border:`1px solid ${nextStint?COLORS[nextStint.driver]+"55":"#1a1a2e"}`,
+              display:"flex", flexDirection:"column" }}>
+              <div style={{ fontSize:12, letterSpacing:3, color:TXT_MUTED, marginBottom:10 }}>
+                NESTE STINT #{currentStintIdx+2}
+              </div>
+              {nextStint ? <>
+                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+                  <Dot color={COLORS[nextStint.driver]} size={12} />
+                  <span style={{ fontSize:16, fontWeight:700, color:TXT_SECONDARY }}>{nextStint.driverName}</span>
+                  {nextStint.kartNum && (
+                    <span style={{ marginLeft:"auto", background:"#2a0a4e",
+                      border:`1px solid ${nextStint.stint%2===1?"#DA77F2":COL_SUCCESS}`,
+                      color: nextStint.stint%2===1?"#DA77F2":COL_SUCCESS,
+                      borderRadius:6, padding:"3px 10px", fontSize:14, fontWeight:900 }}>
+                      🏎 #{nextStint.kartNum}
+                    </span>
+                  )}
+                  <span style={{ marginLeft: nextStint.kartNum ? 0 : "auto", fontSize:12,
+                    background:"#1a1a2e", color:TXT_MUTED, padding:"2px 8px", borderRadius:10 }}>GJØR KLAR</span>
+                </div>
+                <Row label="Planlagt start"    value={fmt(nextStint.startTime)} />
+                <Row label="Planlagt varighet" value={fmt(nextStint.duration)} color=COL_ACCENT />
+                <Row label="🪧 Pit-skilt ved"  value={fmt(nextStint.pitBoardAt)} color=COL_WARNING />
+                <Row label="Planlagt pit inn"  value={nextStint.pitEntry?fmt(nextStint.pitEntry):"Siste"} />
+                <Row label="Est. runder"       value={nextStint.estimatedLaps} />
+                {nextStint.inBoostConflict && (
+                  <div style={{ marginTop:8, fontSize:12, color:COL_DANGER }}>
+                    ⚡ Advarsel: Mulig boost-konflikt ved pit-inn
+                  </div>
+                )}
+              </> : <div style={{ color:TXT_MUTED, fontSize:13, marginTop:20 }}>Siste stint pågår</div>}
+
+              {/* Upcoming stints preview */}
+              {schedule.slice(currentStintIdx+2, currentStintIdx+5).length > 0 && (
+                <div style={{ marginTop:"auto", paddingTop:14, borderTop:"1px solid #1a1a2e" }}>
+                  <div style={{ fontSize:12, color:TXT_DISABLED, letterSpacing:2, marginBottom:8 }}>KOMMENDE STINTS</div>
+                  {schedule.slice(currentStintIdx+2, currentStintIdx+5).map((s,i) => (
+                    <div key={i} style={{ display:"flex", alignItems:"center", gap:8,
+                      marginBottom:6, opacity:.7 }}>
+                      <Dot color={COLORS[s.driver]} size={6} />
+                      <span style={{ fontSize:12, color:TXT_SECONDARY, flex:1 }}>#{s.stint} {s.driverName}</span>
+                      <span style={{ fontSize:12, color:TXT_MUTED }}>{fmt(s.startTime)}</span>
+                      <span style={{ fontSize:12, color:COL_ACCENT }}>{fmt(s.duration)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Boost status */}
+            {mode === "boost" && raceStarted && (
+              <div style={{ gridColumn:"1/-1", background:"#111", borderRadius:8,
+                padding:12, border:"1px solid #1a1a2e",
+                display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
+                <div style={{ fontSize:12, letterSpacing:3, color:COL_ACCENT }}>⚡ BOOST STATUS</div>
+                {bw.filter(b => b.end > raceElapsed).slice(0,6).map((b,i) => {
+                  const active = b.start <= raceElapsed && b.end > raceElapsed;
+                  return (
+                    <div key={i} style={{ background:active?"#3a2a00":"#0a0a0f",
+                      border:`1px solid ${active?COL_ACCENT:"#1a1a2e"}`,
+                      borderRadius:6, padding:"6px 12px", textAlign:"center", minWidth:60 }}>
+                      {active
+                        ? <div style={{ fontSize:11, fontWeight:900, color:COL_ACCENT }}>🔥 AKTIV!</div>
+                        : <>
+                          <div style={{ fontSize:12, fontWeight:900, color:COL_ACCENT }}>{fmt(b.start)}</div>
+                          <div style={{ fontSize:11, color:TXT_MUTED }}>om {fmt(b.start - raceElapsed)}</div>
+                        </>
+                      }
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── STRATEGY TAB ─────────────────────────────────────────────────── */}
+        {activeTab === "strategy" && (
+          <div role="tabpanel" aria-labelledby="tab-strategy">
+            <div className="table-wrap" style={{ background:"#111", borderRadius:8, overflow:"hidden", border:"1px solid #1a1a2e" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                <caption className="sr-only">Strategi-oversikt for løpet med stints, kart, førere og pit-tider</caption>
+                <thead>
+                  <tr style={{ background:"#1a1a2e", borderBottom:"2px solid #FF4136" }}>
+                    {["#","KART","FØRER","START","VARIGHET","FAKTISK","🪧 PIT-SKILT","PIT INN","PIT UT","RND EST.","RND FAKTISK","STATUS"].map(h => (
+                      <th key={h} scope="col" style={{ padding:"10px 7px", textAlign:"left",
+                        color:COL_DANGER, fontWeight:900, fontSize:12, letterSpacing:1 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {schedule.map((s, i) => {
+                    const isCurrent = i === currentStintIdx && raceStarted;
+                    const isDone    = s.isCompleted;
+                    return (
+                      <tr key={i}
+                        aria-current={isCurrent ? "step" : undefined}
+                        style={{
+                        borderBottom:"1px solid #1a1a2e",
+                        background: isCurrent?"#2a1a00":isDone?"#0a200a":
+                          s.inBoostConflict?"rgba(255,107,107,.08)":i%2===0?"#0d0d14":"#111",
+                        opacity: isDone ? 0.75 : 1,
+                      }}>
+                        <td style={{ padding:"8px 7px", fontWeight:700,
+                          color:isCurrent?COL_ACCENT:COL_DANGER }}>
+                          <span aria-hidden="true">{isCurrent?"▶":isDone?"✓":""}</span> {s.stint}
+                        </td>
+                        <td style={{ padding:"8px 7px" }}>
+                          {s.kartNum ? (
+                            <span aria-label={`Kart ${s.stint%2===1?"A":"B"} nummer ${s.kartNum}`}
+                              style={{ background: s.stint%2===1?"#2a0a4e":"#0a2a1a",
+                              border:`2px solid ${s.stint%2===1?"#DA77F2":COL_SUCCESS}`,
+                              color: s.stint%2===1?"#DA77F2":COL_SUCCESS,
+                              borderRadius: s.stint%2===1?4:12, padding:"2px 8px", fontSize:12, fontWeight:900,
+                              letterSpacing:1, display:"inline-block", minWidth:48, textAlign:"center" }}>
+                              {s.stint%2===1?"A":"B"}·{s.kartNum}
+                            </span>
+                          ) : <span style={{color:TXT_DISABLED}} aria-label="Ingen kart">—</span>}
+                        </td>
+                        <td style={{ padding:"8px 7px" }}>
+                          <span style={{ display:"flex", alignItems:"center", gap:5 }}>
+                            <Dot color={COLORS[s.driver]} size={6} />{s.driverName}
+                          </span>
+                        </td>
+                        <td style={{ padding:"8px 7px", color:TXT_SECONDARY }}>{fmt(s.startTime)}</td>
+                        <td style={{ padding:"8px 7px", color:COL_ACCENT, fontWeight:700 }}>{fmt(s.duration)}</td>
+                        <td style={{ padding:"8px 7px", color:isDone?COL_SUCCESS:TXT_DISABLED }}>
+                          {isDone ? fmt(s.actualDuration) : "—"}
+                        </td>
+                        <td style={{ padding:"8px 7px", color:COL_WARNING }}>
+                          {s.pitBoardAt?fmt(s.pitBoardAt):"—"}
+                        </td>
+                        <td style={{ padding:"8px 7px", color:s.pitEntry?COL_DANGER:TXT_DISABLED }}>
+                          {s.pitEntry?fmt(s.pitEntry):"—"}
+                        </td>
+                        <td style={{ padding:"8px 7px", color:s.pitExit?COL_SUCCESS:TXT_DISABLED }}>
+                          {s.pitExit?fmt(s.pitExit):"—"}
+                        </td>
+                        <td style={{ padding:"8px 7px", color:COL_INFO, fontWeight:700 }}>
+                          {s.estimatedLaps}
+                        </td>
+                        <td style={{ padding:"4px 7px" }}>
+                          <input
+                            type="number" min={0} max={99}
+                            value={actualLaps[s.stint] ?? ""}
+                            placeholder={String(s.estimatedLaps)}
+                            aria-label={`Faktiske runder kjørt i stint ${s.stint} (estimat: ${s.estimatedLaps})`}
+                            onChange={e => {
+                              const v = e.target.value;
+                              setActualLaps(prev => {
+                                const next = { ...prev };
+                                if (v === "" || v === null) { delete next[s.stint]; }
+                                else { next[s.stint] = parseInt(v) || 0; }
+                                return next;
+                              });
+                            }}
+                            style={{
+                              width:60, background: actualLaps[s.stint] != null ? "#1a1a00" : "#0d0d14",
+                              border:`1px solid ${actualLaps[s.stint] != null ? COL_ACCENT : "#2a2a3a"}`,
+                              color:COL_ACCENT, padding:"6px 6px", borderRadius:4,
+                              fontSize:13, fontWeight:700, fontFamily:"inherit", textAlign:"center",
+                            }}
+                          />
+                        </td>
+                        <td style={{ padding:"8px 7px" }}>
+                          {isDone    && <span style={{color:COL_SUCCESS,fontSize:12,fontWeight:700}}><span aria-hidden="true">✓ </span>FERDIG</span>}
+                          {isCurrent && <span style={{color:COL_ACCENT,fontSize:12,fontWeight:700}}><span aria-hidden="true">▶ </span>PÅGÅR</span>}
+                          {!isDone&&!isCurrent&&s.inBoostConflict&&<span style={{color:COL_DANGER,fontSize:12,fontWeight:700}}><span aria-hidden="true">⚡ </span>BOOST-KONFLIKT</span>}
+                          {!isDone&&!isCurrent&&!s.inBoostConflict&&<span style={{color:TXT_SECONDARY,fontSize:12,fontWeight:700}}>VENTER</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ marginTop:8, fontSize:12, color:TXT_MUTED, display:"flex", gap:16, flexWrap:"wrap", alignItems:"center" }}>
+              <span><span aria-hidden="true">🛑 </span>Planlagte pitstop: <b style={{color: warningPits?COL_DANGER:COL_WARNING}}>{totalPitsPlanned}</b>
+                {warningPits && <span role="alert" style={{color:COL_DANGER}}><span aria-hidden="true"> ⚠️ </span>Under minimum!</span>}
+              </span>
+              <span><span aria-hidden="true">✓ </span>Gjennomført: <b style={{color:COL_SUCCESS}}>{pitsDone}</b></span>
+              <span><span aria-hidden="true">⏱ </span>Tid i pit: <b style={{color:TXT_SECONDARY}}>{fmt(pitsDone*PIT_DURATION_MIN)}</b></span>
+              <span style={{ marginLeft:"auto", display:"flex", gap:12, alignItems:"center" }}>
+                <span>🔵 Est. runder: <b style={{color:COL_INFO}}>{totalEstLaps}</b></span>
+                {hasLapOverride && (
+                  <span style={{ background:"#1a1a00", border:"1px solid #FFDC00",
+                    borderRadius:6, padding:"3px 10px", color:COL_ACCENT, fontWeight:700 }}>
+                    ✏️ Justert total: <b>{totalEffLaps}</b> runder
+                    {totalEffLaps !== totalEstLaps && (
+                      <span style={{ marginLeft:6, color: totalEffLaps > totalEstLaps ? COL_SUCCESS : COL_DANGER }}>
+                        ({totalEffLaps > totalEstLaps ? "+" : ""}{totalEffLaps - totalEstLaps})
+                      </span>
+                    )}
+                  </span>
+                )}
+                {hasLapOverride && (
+                  <button onClick={() => setActualLaps({})}
+                    aria-label="Nullstill alle manuelt registrerte runder"
+                    style={{ background:"transparent", border:`1px solid ${TXT_MUTED}`, color:TXT_PRIMARY,
+                      padding:"6px 10px", borderRadius:4, cursor:"pointer",
+                      fontFamily:"inherit", fontSize:12, minHeight:32 }}>
+                    <span aria-hidden="true">↺ </span>Nullstill
+                  </button>
+                )}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* ─── TIMELINE TAB ─────────────────────────────────────────────────── */}
+        {activeTab === "timeline" && (
+          <div role="tabpanel" aria-labelledby="tab-timeline" style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            <div style={{ background:"#111", borderRadius:8, padding:18, border:"1px solid #1a1a2e" }}>
+              <div style={{ fontSize:12, letterSpacing:3, color:COL_DANGER, marginBottom:12 }}>LØPSOVERSIKT</div>
+              <div style={{ position:"relative", height:60, background:"#0a0a0f", borderRadius:6, overflow:"hidden", marginBottom:8 }}>
+                {bw.map((b,i) => (
+                  <div key={i} style={{ position:"absolute", left:`${(b.start/120)*100}%`,
+                    width:`${(boostDuration/120)*100}%`, top:0, bottom:0,
+                    background:"rgba(255,220,0,.1)", borderLeft:"1px solid rgba(255,220,0,.35)" }} />
+                ))}
+                {schedule.map((s,i) => {
+                  const l=(s.startTime/120)*100, w=(s.duration/120)*100;
+                  return (
+                    <div key={i} style={{ position:"absolute", left:`${l}%`,
+                      width:`${Math.max(w,.4)}%`, top:8, bottom:8,
+                      background:COLORS[s.driver], opacity:s.isCompleted?.55:.85,
+                      borderRadius:3, display:"flex", alignItems:"center", justifyContent:"center",
+                      fontSize:11, color:"#000", fontWeight:900, overflow:"hidden",
+                      outline: i===currentStintIdx&&raceStarted?"2px solid #fff":"none",
+                    }}>
+                      {w>2?`#${s.stint}`:""}
+                    </div>
+                  );
+                })}
+                {raceStarted && (
+                  <div style={{ position:"absolute", left:`${(raceElapsed/120)*100}%`,
+                    top:0, bottom:0, width:2, background:"#fff", opacity:.7 }} />
+                )}
+              </div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
+                {drivers.map((d,i)=>(
+                  <span key={i} style={{ display:"flex", alignItems:"center", gap:5, fontSize:12, color:TXT_SECONDARY }}>
+                    <div style={{ width:12,height:7,background:COLORS[i],borderRadius:2 }} />{d.name}
+                  </span>
+                ))}
+                {mode==="boost" && (
+                  <span style={{ display:"flex", alignItems:"center", gap:5, fontSize:12, color:TXT_SECONDARY }}>
+                    <div style={{ width:12,height:7,background:"rgba(255,220,0,.3)",
+                      border:"1px solid #FFDC00",borderRadius:2 }} />Boost
+                  </span>
+                )}
+              </div>
+              <div style={{ position:"relative", height:14, marginTop:4 }}>
+                {[0,15,30,45,60,75,90,105,120].map(t=>(
+                  <div key={t} style={{ position:"absolute", left:`${(t/120)*100}%`,
+                    fontSize:11, color:TXT_DISABLED, transform:"translateX(-50%)" }}>{t}'</div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ background:"#111", borderRadius:8, padding:18, border:"1px solid #1a1a2e" }}>
+              <div style={{ fontSize:12, letterSpacing:3, color:COL_DANGER, marginBottom:14 }}>FØRER-TIDSLINJE</div>
+              {drivers.map((d,di)=>{
+                const ds=schedule.filter(s=>s.driver===di);
+                return (
+                  <div key={di} style={{ marginBottom:12 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                      <Dot color={COLORS[di]} size={7} />
+                      <span style={{ fontSize:12,color:TXT_SECONDARY,minWidth:80 }}>{d.name}</span>
+                      <span style={{ fontSize:12,color:TXT_MUTED }}>
+                        {ds.reduce((sum,s)=>sum+(s.actualDuration??s.duration),0).toFixed(1)} min · {ds.length} stint(s)
+                      </span>
+                    </div>
+                    <div style={{ position:"relative", height:22, background:"#0a0a0f", borderRadius:4, overflow:"hidden" }}>
+                      {ds.map((s,si)=>(
+                        <div key={si} style={{ position:"absolute",
+                          left:`${(s.startTime/120)*100}%`, width:`${(s.duration/120)*100}%`,
+                          top:2, bottom:2, background:COLORS[di], opacity:s.isCompleted?.5:.8,
+                          borderRadius:3, display:"flex", alignItems:"center", justifyContent:"center",
+                          fontSize:11, fontWeight:700, color:"#000" }}>
+                          {(s.duration/120*100)>3?fmt(s.duration):""}
+                        </div>
+                      ))}
+                      {raceStarted && (
+                        <div style={{ position:"absolute",left:`${(raceElapsed/120)*100}%`,
+                          top:0,bottom:0,width:1,background:"#fff",opacity:.4 }} />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ─── SUMMARY TAB ──────────────────────────────────────────────────── */}
+        {activeTab === "summary" && (
+          <div role="tabpanel" aria-labelledby="tab-summary" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            {driverSummary.map((ds,i)=>(
+              <div key={i} style={{ background:"#111", borderRadius:8, padding:18,
+                border:`2px solid ${COLORS[i]}22`, borderLeft:`4px solid ${COLORS[i]}` }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
+                  <Dot color={COLORS[i]} size={12} />
+                  <span style={{ fontWeight:700, fontSize:14 }}>{ds.name}</span>
+                  <span style={{ marginLeft:"auto", fontSize:12, color:TXT_MUTED }}>
+                    {ds.done}/{ds.stints} stints ferdig
+                  </span>
+                </div>
+                <Row label="Total kjøretid"  value={fmt(ds.totalTime)}        color=COL_ACCENT />
+                <Row label="Antall stints"   value={`${ds.stints} stint(s)`}  color=COL_SUCCESS />
+                <Row label="Est. runder"     value={`${ds.totalLaps} runder`} color={hasLapOverride?COL_ACCENT:COL_INFO} />
+                <Row label="Avg per stint"   value={fmt(ds.totalTime/Math.max(1,ds.stints))} color=COL_WARNING />
+              </div>
+            ))}
+            <div style={{ gridColumn:"1/-1", background:"#111", borderRadius:8, padding:18, border:"1px solid #1a1a2e" }}>
+              <div style={{ fontSize:12, letterSpacing:3, color:COL_DANGER, marginBottom:14 }}>LØPSOVERSIKT</div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:14 }}>
+                <BigStat label="Plan. pitstop"  value={totalPitsPlanned} color={warningPits?COL_DANGER:COL_DANGER} />
+                <BigStat label="Gjenn. pitstop" value={pitsDone} color=COL_SUCCESS />
+                <BigStat label="Stints"         value={schedule.length} />
+                <BigStat label="Tid i pit"      value={fmt(pitsDone*PIT_DURATION_MIN)} />
+                <div style={{ textAlign:"center" }}>
+                  <div style={{ fontSize:22, fontWeight:900, color: hasLapOverride?COL_ACCENT:COL_INFO, lineHeight:1 }}>
+                    {totalEffLaps}
+                  </div>
+                  <div style={{ fontSize:11, color:TXT_MUTED, marginTop:4, letterSpacing:1 }}>
+                    {hasLapOverride ? "JUSTERTE RUNDER" : "EST. RUNDER"}
+                  </div>
+                  {hasLapOverride && totalEffLaps !== totalEstLaps && (
+                    <div style={{ fontSize:12, color: totalEffLaps > totalEstLaps ? COL_SUCCESS : COL_DANGER, marginTop:2 }}>
+                      est. {totalEstLaps} ({totalEffLaps > totalEstLaps ? "+" : ""}{totalEffLaps - totalEstLaps})
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── LOG TAB ──────────────────────────────────────────────────────── */}
+        {activeTab === "log" && (
+          <div role="tabpanel" aria-labelledby="tab-log">
+            {adjustLog.length === 0 ? (
+              <div style={{ background:"#111", borderRadius:8, padding:32, textAlign:"center",
+                color:TXT_DISABLED, border:"1px solid #1a1a2e" }}>
+                <div style={{ fontSize:32, marginBottom:8 }}>📝</div>
+                <div style={{ fontSize:12, letterSpacing:2 }}>Ingen justeringer registrert ennå</div>
+                <div style={{ fontSize:12, color:"#2a2a3a", marginTop:6 }}>
+                  Logg oppdateres automatisk når du registrerer faktisk pit-tid
+                </div>
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                {adjustLog.map((entry, i) => {
+                  const early = entry.delta != null && entry.delta < -0.5;
+                  const late  = entry.delta != null && entry.delta >  0.5;
+                  return (
+                    <div key={i} style={{ background:"#111", borderRadius:8, padding:16,
+                      border:`1px solid ${early?COL_SUCCESS:late?COL_WARNING:"#1a1a2e"}`,
+                      borderLeft:`4px solid ${early?COL_SUCCESS:late?COL_WARNING:TXT_MUTED}` }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
+                        <span style={{ fontSize:12, color:COL_DANGER, fontWeight:900 }}>STINT #{entry.stint}</span>
+                        <span style={{ fontSize:12, fontWeight:700 }}>{entry.driver}</span>
+                        <span style={{ marginLeft:"auto", fontSize:12, color:TXT_MUTED }}>@ {entry.timestamp}</span>
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
+                        <div style={{ textAlign:"center", background:"#0d0d14", borderRadius:6, padding:"8px 6px" }}>
+                          <div style={{ fontSize:11, color:TXT_MUTED, letterSpacing:2, marginBottom:4 }}>PLANLAGT PIT INN</div>
+                          <div style={{ fontSize:14, fontWeight:700, color:TXT_SECONDARY }}>{fmt(entry.planned)}</div>
+                        </div>
+                        <div style={{ textAlign:"center", background:"#0d0d14", borderRadius:6, padding:"8px 6px" }}>
+                          <div style={{ fontSize:11, color:TXT_MUTED, letterSpacing:2, marginBottom:4 }}>FAKTISK PIT INN</div>
+                          <div style={{ fontSize:14, fontWeight:700, color:TXT_PRIMARY }}>{fmt(entry.actual)}</div>
+                        </div>
+                        <div style={{ textAlign:"center", background:"#0d0d14", borderRadius:6, padding:"8px 6px" }}>
+                          <div style={{ fontSize:11, color:TXT_MUTED, letterSpacing:2, marginBottom:4 }}>AVVIK</div>
+                          <div style={{ fontSize:14, fontWeight:700,
+                            color: early?COL_SUCCESS:late?COL_WARNING:TXT_PRIMARY }}>
+                            {entry.delta!=null?(early?"-":late?"+":"")+fmt(Math.abs(entry.delta)):"—"}
+                          </div>
+                        </div>
+                      </div>
+                      {entry.extraPits > 0 && (
+                        <div style={{ marginTop:8, fontSize:12, color:COL_WARNING,
+                          background:"#1a1000", borderRadius:4, padding:"6px 10px" }}>
+                          ⚠️ Strategi fikk {entry.extraPits} ekstra pitstop for å holde seg innenfor regelkrav og tidsgrenser
+                        </div>
+                      )}
+                      {early && (
+                        <div style={{ marginTop:8, fontSize:12, color:COL_SUCCESS,
+                          background:"#0a1a0a", borderRadius:4, padding:"6px 10px" }}>
+                          ✓ Tidlig pit — gjenværende stints har fått fordelt ekstra tid
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
-function rndrLogg(){
-  const entries = loadLogg();
-  const emptyEl = document.getElementById('loggEmpty');
-  const listEl  = document.getElementById('loggList');
-  if(!emptyEl || !listEl) return;
+// ─── Shared styles ────────────────────────────────────────────────────────────
+const S = {
+  page: { minHeight:"100vh", background:"#0a0a0f", color:TXT_PRIMARY, fontFamily:"'Courier New',monospace" },
+  input: { flex:1, background:"#111", border:"1px solid #2a2a3a", color:TXT_PRIMARY,
+    padding:"8px 10px", borderRadius:4, fontSize:14, fontFamily:"'Courier New',monospace", minHeight:36 },
+  primaryBtn: { background:"linear-gradient(135deg,#FF6B6B,#cc2a21)", border:"none",
+    color:"#fff", padding:"16px 20px", borderRadius:8, cursor:"pointer", fontFamily:"'Courier New',monospace",
+    fontSize:14, fontWeight:900, letterSpacing:3, textTransform:"uppercase",
+    boxShadow:"0 4px 20px rgba(255,107,107,.4)", minHeight:52 },
+  startBtn: { background:COL_SUCCESS, border:"none", color:"#000", padding:"12px 20px",
+    borderRadius:6, cursor:"pointer", fontFamily:"'Courier New',monospace",
+    fontSize:13, fontWeight:900, letterSpacing:2, minHeight:44 },
+  backBtn: { background:"#111", border:`1px solid ${TXT_MUTED}`, color:TXT_PRIMARY,
+    padding:"12px 16px", borderRadius:6, cursor:"pointer",
+    fontFamily:"'Courier New',monospace", fontSize:12, letterSpacing:2, minHeight:44 },
+  confirmBtn: { background:COL_SUCCESS, border:"none", color:"#000", padding:"10px 14px",
+    borderRadius:4, cursor:"pointer", fontFamily:"'Courier New',monospace",
+    fontSize:13, fontWeight:900, minHeight:40 },
+  nowBtn: { background:COL_INFO, border:"none", color:"#000", padding:"10px 14px",
+    borderRadius:4, cursor:"pointer", fontFamily:"'Courier New',monospace",
+    fontSize:13, fontWeight:900, minHeight:40 },
+};
 
-  if(entries.length===0){
-    emptyEl.style.display='block';
-    listEl.innerHTML='';
-    return;
-  }
-  emptyEl.style.display='none';
+// ─── KV Sync Panel ───────────────────────────────────────────────────────────
+function KvPanel({ kvKey, setKvKey, kvStatus, kvLastSaved, kvSave, kvLoad, kvPanel, setKvPanel, kvApi }) {
+  const apiReady = !kvApi.includes("DIN-WORKER-URL");
+  return (
+    <div style={{ background:"#0d0d14", border:`1px solid ${apiReady ? "#2a2a3a" : "#3a2a00"}`,
+      borderRadius:8, padding:16 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom: apiReady ? 12 : 0 }}>
+        <span style={{ fontSize:16 }}>☁</span>
+        <span style={{ fontSize:12, fontWeight:700, color:TXT_PRIMARY, letterSpacing:2 }}>SKY-SYNKRONISERING</span>
+        {kvPanel !== undefined && (
+          <button onClick={() => setKvPanel(v => !v)}
+            style={{ marginLeft:"auto", background:"transparent", border:"none",
+              color:TXT_MUTED, cursor:"pointer", fontSize:18, lineHeight:1 }}>×</button>
+        )}
+      </div>
 
-  listEl.innerHTML = entries.map(e=>{
-    const driveStints = e.stints.filter(s=>s.type==='drive');
-    const pitCount    = e.stints.filter(s=>s.type==='pit').length;
-    const totalRace   = Math.round(e.rSec/60);
-    const nDrivers    = e.drivers.length;
-    const driverNames = e.drivers.map(d=>d.name||'Fører').join(', ');
+      {!apiReady ? (
+        <div style={{ fontSize:11, color:COL_WARNING, lineHeight:1.7, marginTop:8 }}>
+          <span aria-hidden="true">⚠️ </span>Worker-URL er ikke satt opp ennå.{"\n"}
+          Bytt ut <code style={{background:"#1a1a2e",padding:"1px 5px",borderRadius:3}}>DIN-WORKER-URL</code> i
+          koden med din faktiske Cloudflare Worker-URL.
+        </div>
+      ) : (
+        <>
+          <div style={{ fontSize:11, color:TXT_MUTED, marginBottom:12, lineHeight:1.6 }}>
+            Bruk samme <b style={{color:TXT_PRIMARY}}>sesjonsnøkkel</b> på alle enheter for å dele data.
+            Auto-lagring hvert minutt når løp pågår.
+          </div>
 
-    // Per-driver stint summary
-    const driverRows = e.drivers.map((d,i)=>{
-      const myStints = driveStints.filter(s=>s.di===i);
-      const totalMin = Math.round(myStints.reduce((a,s)=>a+(s.end-s.start),0)/60);
-      const stintNums = myStints.map(s=>s.sn).join(', ');
-      return '<div style="display:flex;gap:8px;align-items:center;font-size:11px;margin-bottom:3px">'
-        +'<span style="width:8px;height:8px;border-radius:50%;background:'+C[i%C.length]+';display:inline-block;flex-shrink:0"></span>'
-        +'<span style="color:#FFFFFF;min-width:90px">'+(d.name||'Fører '+(i+1))+'</span>'
-        +'<span style="color:#555">'+totalMin+' min</span>'
-        +(stintNums?'<span style="color:#555;margin-left:4px">· stint '+stintNums+'</span>':'')
-        +'</div>';
-    }).join('');
+          <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+            <label htmlFor="kv-key" style={{ fontSize:11, color:TXT_MUTED, minWidth:100 }}>Sesjonsnøkkel</label>
+            <input id="kv-key" type="text"
+              value={kvKey}
+              onChange={e => setKvKey(e.target.value)}
+              placeholder="mitt-lag-2025"
+              aria-describedby="kv-key-hint"
+              style={{ ...inputStyle, width:180, fontSize:13, fontWeight:700, color:COL_ACCENT }} />
+            <button onClick={kvSave} disabled={!kvKey.trim()}
+              aria-label="Lagre all data til sky"
+              style={{ background:COL_SUCCESS, border:"none", color:"#000", padding:"8px 14px",
+                borderRadius:4, cursor:"pointer", fontFamily:"inherit", fontSize:12,
+                fontWeight:900, minHeight:36, opacity: kvKey.trim() ? 1 : 0.5 }}>
+              <span aria-hidden="true">↑ </span>LAGRE
+            </button>
+            <button onClick={kvLoad} disabled={!kvKey.trim()}
+              aria-label="Hent data fra sky"
+              style={{ background:COL_INFO, border:"none", color:"#000", padding:"8px 14px",
+                borderRadius:4, cursor:"pointer", fontFamily:"inherit", fontSize:12,
+                fontWeight:900, minHeight:36, opacity: kvKey.trim() ? 1 : 0.5 }}>
+              <span aria-hidden="true">↓ </span>HENT
+            </button>
+          </div>
 
-    // Mini timeline
-    const tlW = 300;
-    const tlSegs = e.stints.map(s=>{
-      const l=(s.start/e.rSec*100).toFixed(2);
-      const w=Math.max(0.5,(s.end-s.start)/e.rSec*100).toFixed(2);
-      const col = s.type==='pit'?'#E8002D':(s.di!==undefined?C[s.di%C.length]:'#555');
-      const op = s.type==='pit'?'0.6':'0.85';
-      return '<div style="position:absolute;top:0;height:100%;left:'+l+'%;width:'+w+'%;background:'+col+';opacity:'+op+'"></div>';
-    }).join('');
-
-    return '<div class="logg-item">'
-      +'<div class="logg-item-hd">'
-        +'<div>'
-          +'<div class="logg-item-name">📋 '+e.name+'</div>'
-          +'<div class="logg-item-meta">'+e.mode+' · '+totalRace+' min · '+nDrivers+' førere · '+pitCount+' pitstop</div>'
-        +'</div>'
-        +'<div class="logg-item-actions">'
-          +'<button class="btn pr" style="font-size:11px;padding:5px 10px" onclick="loadStrategy('+e.id+')">Last inn</button>'
-          +'<button class="btn dn" style="font-size:11px;padding:5px 10px" onclick="deleteLoggEntry('+e.id+')">Slett</button>'
-        +'</div>'
-      +'</div>'
-      +'<div style="position:relative;height:14px;background:#111;border-radius:4px;overflow:hidden;margin-bottom:.6rem;border:1px solid #2A2A2A">'
-        +tlSegs
-      +'</div>'
-      +'<div class="logg-detail">'+driverRows+'</div>'
-    +'</div>';
-  }).join('');
+          <div id="kv-key-hint" style={{ fontSize:11, color:TXT_MUTED, marginTop:8 }}>
+            {kvLastSaved
+              ? <span style={{color:COL_SUCCESS}}><span aria-hidden="true">✓ </span>Sist lagret: {kvLastSaved.toLocaleTimeString("no")}</span>
+              : <span>Ikke lagret ennå denne sesjonen</span>}
+            {kvStatus==="saving"   && <span style={{color:COL_ACCENT}}> — Lagrer…</span>}
+            {kvStatus==="loading"  && <span style={{color:COL_ACCENT}}> — Henter…</span>}
+            {kvStatus==="error"    && <span style={{color:COL_DANGER}}> — Feil ved kommunikasjon med server</span>}
+            {kvStatus==="notfound" && <span style={{color:COL_WARNING}}> — Fant ingen data med denne nøkkelen</span>}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
-// ── Init ──────────────────────────────────────────────────────
-drivers = Array.from({length:4}, () => ({name:'', lt:40}));
-rdDrvs();
+const inputStyle = { background:"#111", border:"1px solid #2a2a3a", color:TXT_PRIMARY,
+  padding:"8px 10px", borderRadius:4, fontSize:12, fontFamily:"'Courier New',monospace" };
 
-</script>
+// ─── Mini-components ──────────────────────────────────────────────────────────
+function AppHeader() {
+  return (
+    <div style={{ background:"linear-gradient(135deg,#1a0a2e,#0d1117 50%,#0a1a0a)",
+      borderBottom:"2px solid #FF4136", padding:"14px 22px",
+      display:"flex", alignItems:"center", gap:14 }}>
+      <span aria-hidden="true" style={{ fontSize:26 }}>🏁</span>
+      <div>
+        <div style={{ fontSize:17, fontWeight:900, letterSpacing:4, color:"#fff" }}>GOKART STRATEGI</div>
+        <div style={{ fontSize:11, letterSpacing:3, color:COL_DANGER, marginTop:2 }}>BEDRIFTSSERIEN · RACE STRATEGY TOOL</div>
+      </div>
+    </div>
+  );
+}
+function Card({ title, children }) {
+  return (
+    <div style={{ background:"#0d0d14", borderRadius:8, padding:14, border:"1px solid #1a1a2e" }}>
+      <div style={{ fontSize:12, letterSpacing:3, color:COL_DANGER, marginBottom:12, fontWeight:900 }}>{title}</div>
+      {children}
+    </div>
+  );
+}
+function ModeBtn({ active, onClick, label, sub }) {
+  return (
+    <button onClick={onClick} aria-pressed={active} style={{ background:active?COL_DANGER:"#111",
+      border:`2px solid ${active?COL_DANGER:"#2a2a3a"}`, color:active?"#000":TXT_PRIMARY,
+      borderRadius:6, padding:"11px 8px", cursor:"pointer", textAlign:"center", minHeight:44 }}>
+      <div style={{ fontSize:13, fontWeight:700, fontFamily:"'Courier New',monospace" }}>{label}</div>
+      <div style={{ fontSize:12, color:active?"#1a0000":TXT_MUTED, marginTop:3 }}>{sub}</div>
+    </button>
+  );
+}
+function NumBtn({ active, onClick, label }) {
+  return (
+    <button onClick={onClick} aria-pressed={active} aria-label={`${label} førere`} style={{ width:44, height:44,
+      background:active?COL_DANGER:"#111", border:`2px solid ${active?COL_DANGER:"#2a2a3a"}`,
+      color:active?"#000":TXT_PRIMARY, borderRadius:6, cursor:"pointer",
+      fontWeight:700, fontSize:14, fontFamily:"'Courier New',monospace" }}>
+      {label}
+    </button>
+  );
+}
+function TabBtn({ id, active, onClick, label }) {
+  return (
+    <button id={id} onClick={onClick} role="tab" aria-selected={active} style={{ background:active?"#1a1a2e":"transparent",
+      border:"none", borderBottom:`2px solid ${active?COL_DANGER:"transparent"}`,
+      color:active?"#fff":TXT_SECONDARY, padding:"12px 14px", cursor:"pointer",
+      fontSize:12, letterSpacing:2, fontFamily:"'Courier New',monospace",
+      fontWeight:700, marginBottom:-2, minHeight:44 }}>
+      {label}
+    </button>
+  );
+}
+function ClockBlock({ label, value, color, ariaLabel }) {
+  return (
+    <div role="timer" aria-label={ariaLabel || `${label}: ${value}`} aria-live="polite">
+      <div style={{ fontSize:11, color:TXT_MUTED, letterSpacing:2 }} aria-hidden="true">{label}</div>
+      <div style={{ fontSize:24, fontWeight:900, color:color||TXT_PRIMARY, lineHeight:1.1 }} aria-hidden="true">{value}</div>
+    </div>
+  );
+}
+function Dot({ color, size=8, label }) {
+  return <span aria-hidden="true" style={{ display:"inline-block", width:size, height:size, borderRadius:"50%", background:color, flexShrink:0 }} />;
+}
+function Row({ label, value, color }) {
+  return (
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+      <span style={{ fontSize:12, color:TXT_MUTED }}>{label}</span>
+      <span style={{ fontSize:12, fontWeight:700, color:color||TXT_PRIMARY }}>{value}</span>
+    </div>
+  );
+}
+function BigStat({ label, value, color }) {
+  return (
+    <div style={{ textAlign:"center" }}>
+      <div style={{ fontSize:22, fontWeight:900, color:color||COL_DANGER, lineHeight:1 }}>{value}</div>
+      <div style={{ fontSize:11, color:TXT_MUTED, marginTop:4, letterSpacing:1 }}>{label}</div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<GokartStrategy />);
+  </script>
 </body>
 </html>

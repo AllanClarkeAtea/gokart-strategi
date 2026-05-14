@@ -3,19 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CDN Test</title>
+  <title>Gradvis test</title>
   <style>
-    body { background: #0a0a0f; color: #F4F4F8; font-family: monospace; padding: 30px; }
+    body { background: #0a0a0f; color: #F4F4F8; font-family: monospace; padding: 20px; }
     .ok  { color: #69DB7C; }
-    .err { color: #FF6B6B; }
-    li { margin: 10px 0; font-size: 16px; }
+    .err { color: #FF6B6B; background: #1a0000; padding: 10px; border-radius: 4px; white-space: pre-wrap; }
+    li { margin: 8px 0; font-size: 14px; }
+    .table-wrap { overflow-x: auto; }
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; }
+    input[type=number] { -moz-appearance: textfield; }
   </style>
 </head>
 <body>
-  <h2>CDN-lastettest</h2>
   <ul id="log"></ul>
+  <div id="root"></div>
 
-  <script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+  <script type="text/babel" data-presets="react">
+    const { useState, useCallback, useEffect } = React;
+
     function log(msg, ok) {
       var li = document.createElement('li');
       li.className = ok ? 'ok' : 'err';
@@ -23,40 +32,87 @@
       document.getElementById('log').appendChild(li);
     }
 
-    // Test 1: React
-    var s1 = document.createElement('script');
-    s1.crossOrigin = 'anonymous';
-    s1.src = 'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js';
-    s1.onload  = function() { log('React 18.2.0 lastet OK', true); loadReactDOM(); };
-    s1.onerror = function() { log('React 18.2.0 FEILET — CDN blokkert?', false); };
-    document.head.appendChild(s1);
+    // Step 1: Constants
+    try {
+      const RACE_DURATION = 120;
+      const PIT_DURATION_MIN = 50 / 60;
+      const MIN_TOTAL_PITS = 7;
+      const MIN_STINT = 7;
+      const MAX_STINT = 20;
+      const PIT_BOARD_BEFORE = 1.5;
+      const COLORS = ["#FF6B6B","#FFA94D","#FFE066","#69DB7C","#4DABF7","#DA77F2","#FF8FB3","#7CFFAD"];
+      log('Steg 1: Konstanter OK', true);
 
-    function loadReactDOM() {
-      var s2 = document.createElement('script');
-      s2.crossOrigin = 'anonymous';
-      s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js';
-      s2.onload  = function() { log('ReactDOM 18.2.0 lastet OK', true); loadBabel(); };
-      s2.onerror = function() { log('ReactDOM 18.2.0 FEILET', false); };
-      document.head.appendChild(s2);
-    }
+      // Step 2: Color tokens
+      const TXT_PRIMARY   = "#F4F4F8";
+      const TXT_SECONDARY = "#B8B8C4";
+      const TXT_MUTED     = "#9A9AA8";
+      const TXT_DISABLED  = "#7A7A88";
+      const COL_DANGER    = "#FF6B6B";
+      const COL_WARNING   = "#FFA94D";
+      const COL_SUCCESS   = "#69DB7C";
+      const COL_ACCENT    = "#FFE066";
+      const COL_INFO      = "#4DABF7";
+      log('Steg 2: Fargetokens OK', true);
 
-    function loadBabel() {
-      var s3 = document.createElement('script');
-      s3.src = 'https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js';
-      s3.onload  = function() { log('Babel 7.23.5 lastet OK', true); testRender(); };
-      s3.onerror = function() { log('Babel 7.23.5 FEILET', false); };
-      document.head.appendChild(s3);
-    }
+      // Step 3: S object
+      const S = {
+        page: { minHeight:"100vh", background:"#0a0a0f", color:TXT_PRIMARY, fontFamily:"'Courier New',monospace" },
+        input: { flex:1, background:"#111", border:"1px solid #2a2a3a", color:TXT_PRIMARY, padding:"8px 10px", borderRadius:4, fontSize:14, fontFamily:"'Courier New',monospace" },
+        primaryBtn: { background:"linear-gradient(135deg,#FF6B6B,#cc2a21)", border:"none", color:"#fff", padding:"16px 20px", borderRadius:8, cursor:"pointer", fontFamily:"'Courier New',monospace", fontSize:14, fontWeight:900 },
+        startBtn: { background:COL_SUCCESS, border:"none", color:"#000", padding:"12px 20px", borderRadius:6, cursor:"pointer", fontFamily:"'Courier New',monospace", fontSize:13, fontWeight:900 },
+        backBtn: { background:"#111", border:"1px solid #9A9AA8", color:TXT_PRIMARY, padding:"12px 16px", borderRadius:6, cursor:"pointer", fontFamily:"'Courier New',monospace", fontSize:12 },
+        confirmBtn: { background:COL_SUCCESS, border:"none", color:"#000", padding:"10px 14px", borderRadius:4, cursor:"pointer", fontFamily:"'Courier New',monospace", fontSize:13, fontWeight:900 },
+        nowBtn: { background:COL_INFO, border:"none", color:"#000", padding:"10px 14px", borderRadius:4, cursor:"pointer", fontFamily:"'Courier New',monospace", fontSize:13, fontWeight:900 },
+      };
+      const inputStyle = { background:"#111", border:"1px solid #2a2a3a", color:TXT_PRIMARY, padding:"8px 10px", borderRadius:4, fontSize:12, fontFamily:"'Courier New',monospace" };
+      log('Steg 3: S og inputStyle OK', true);
 
-    function testRender() {
-      try {
-        log('React tilgjengelig: ' + (typeof React !== 'undefined'), typeof React !== 'undefined');
-        log('ReactDOM tilgjengelig: ' + (typeof ReactDOM !== 'undefined'), typeof ReactDOM !== 'undefined');
-        log('Babel tilgjengelig: ' + (typeof Babel !== 'undefined'), typeof Babel !== 'undefined');
-        log('Alle CDN-er OK — problemet er i app-koden', true);
-      } catch(e) {
-        log('Feil: ' + e.message, false);
+      // Step 4: Helper functions
+      function fmt(min) {
+        if (min == null || isNaN(min)) return "--:--";
+        const sign = min < 0 ? "-" : "";
+        const abs  = Math.abs(min);
+        const m    = Math.floor(abs);
+        const s    = Math.round((abs - m) * 60);
+        return sign + String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
       }
+      function getBoostWindows(mode, boostInterval, boostDuration) {
+        if (mode !== "boost") return [];
+        const w = [];
+        for (let t = boostInterval; t < 120; t += boostInterval)
+          w.push({ start: t, end: t + boostDuration });
+        return w;
+      }
+      log('Steg 4: Hjelpefunksjoner OK', true);
+
+      // Step 5: Simple component
+      function TestApp() {
+        const [page, setPage] = useState("setup");
+        return (
+          <div style={{ background:"#0a0a0f", color:"#F4F4F8", padding:40, fontFamily:"monospace" }}>
+            <div style={{ fontSize:20, fontWeight:900 }}>🏁 GOKART STRATEGI</div>
+            <div style={{ marginTop:20, color:"#69DB7C" }}>✅ React render fungerer!</div>
+            <div style={{ marginTop:10, color:"#9A9AA8" }}>fmt test: {fmt(18.5)}</div>
+            <button onClick={() => setPage(page === "setup" ? "race" : "setup")}
+              style={{ marginTop:20, ...S.primaryBtn }}>
+              Side: {page}
+            </button>
+          </div>
+        );
+      }
+
+      log('Steg 5: Komponent definert OK', true);
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<TestApp />);
+      log('Steg 6: render() OK — alt fungerer!', true);
+
+    } catch(e) {
+      var li = document.createElement('li');
+      li.className = 'err';
+      li.textContent = '❌ FEIL: ' + e.message + '\n' + (e.stack || '');
+      document.getElementById('log').appendChild(li);
     }
   </script>
 </body>

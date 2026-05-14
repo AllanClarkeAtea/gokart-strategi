@@ -58,6 +58,31 @@ const MAX_STINT        = 20;           // hard rule
 const PIT_BOARD_BEFORE = 1.5;          // show pit board 90 seconds (1.5 min) before planned stint end
 const COLORS = ["#FF6B6B","#FFA94D","#FFE066","#69DB7C","#4DABF7","#DA77F2","#FF8FB3","#7CFFAD"];
 
+// ─── Shared styles (defined early to avoid ReferenceError) ─────────────────
+const S = {
+  page: { minHeight:"100vh", background:"#0a0a0f", color:TXT_PRIMARY, fontFamily:"'Courier New',monospace" },
+  input: { flex:1, background:"#111", border:"1px solid #2a2a3a", color:TXT_PRIMARY,
+    padding:"8px 10px", borderRadius:4, fontSize:14, fontFamily:"'Courier New',monospace", minHeight:36 },
+  primaryBtn: { background:"linear-gradient(135deg,#FF6B6B,#cc2a21)", border:"none",
+    color:"#fff", padding:"16px 20px", borderRadius:8, cursor:"pointer", fontFamily:"'Courier New',monospace",
+    fontSize:14, fontWeight:900, letterSpacing:3, textTransform:"uppercase",
+    boxShadow:"0 4px 20px rgba(255,107,107,.4)", minHeight:52 },
+  startBtn: { background:COL_SUCCESS, border:"none", color:"#000", padding:"12px 20px",
+    borderRadius:6, cursor:"pointer", fontFamily:"'Courier New',monospace",
+    fontSize:13, fontWeight:900, letterSpacing:2, minHeight:44 },
+  backBtn: { background:"#111", border:`1px solid ${TXT_MUTED}`, color:TXT_PRIMARY,
+    padding:"12px 16px", borderRadius:6, cursor:"pointer",
+    fontFamily:"'Courier New',monospace", fontSize:12, letterSpacing:2, minHeight:44 },
+  confirmBtn: { background:COL_SUCCESS, border:"none", color:"#000", padding:"10px 14px",
+    borderRadius:4, cursor:"pointer", fontFamily:"'Courier New',monospace",
+    fontSize:13, fontWeight:900, minHeight:40 },
+  nowBtn: { background:COL_INFO, border:"none", color:"#000", padding:"10px 14px",
+    borderRadius:4, cursor:"pointer", fontFamily:"'Courier New',monospace",
+    fontSize:13, fontWeight:900, minHeight:40 },
+};
+const inputStyle = { background:"#111", border:"1px solid #2a2a3a", color:TXT_PRIMARY,
+  padding:"8px 10px", borderRadius:4, fontSize:12, fontFamily:"'Courier New',monospace" };
+
 // ─── A11y Color Tokens — all meet WCAG AA against #0a0a0f / #111 ────────────
 const TXT_PRIMARY   = "#F4F4F8";  // body text (~16:1 vs #111)
 const TXT_SECONDARY = "#B8B8C4";  // secondary text (~8:1 vs #111)
@@ -1426,28 +1451,6 @@ function GokartStrategy() {
   );
 }
 
-// ─── Shared styles ────────────────────────────────────────────────────────────
-const S = {
-  page: { minHeight:"100vh", background:"#0a0a0f", color:TXT_PRIMARY, fontFamily:"'Courier New',monospace" },
-  input: { flex:1, background:"#111", border:"1px solid #2a2a3a", color:TXT_PRIMARY,
-    padding:"8px 10px", borderRadius:4, fontSize:14, fontFamily:"'Courier New',monospace", minHeight:36 },
-  primaryBtn: { background:"linear-gradient(135deg,#FF6B6B,#cc2a21)", border:"none",
-    color:"#fff", padding:"16px 20px", borderRadius:8, cursor:"pointer", fontFamily:"'Courier New',monospace",
-    fontSize:14, fontWeight:900, letterSpacing:3, textTransform:"uppercase",
-    boxShadow:"0 4px 20px rgba(255,107,107,.4)", minHeight:52 },
-  startBtn: { background:COL_SUCCESS, border:"none", color:"#000", padding:"12px 20px",
-    borderRadius:6, cursor:"pointer", fontFamily:"'Courier New',monospace",
-    fontSize:13, fontWeight:900, letterSpacing:2, minHeight:44 },
-  backBtn: { background:"#111", border:`1px solid ${TXT_MUTED}`, color:TXT_PRIMARY,
-    padding:"12px 16px", borderRadius:6, cursor:"pointer",
-    fontFamily:"'Courier New',monospace", fontSize:12, letterSpacing:2, minHeight:44 },
-  confirmBtn: { background:COL_SUCCESS, border:"none", color:"#000", padding:"10px 14px",
-    borderRadius:4, cursor:"pointer", fontFamily:"'Courier New',monospace",
-    fontSize:13, fontWeight:900, minHeight:40 },
-  nowBtn: { background:COL_INFO, border:"none", color:"#000", padding:"10px 14px",
-    borderRadius:4, cursor:"pointer", fontFamily:"'Courier New',monospace",
-    fontSize:13, fontWeight:900, minHeight:40 },
-};
 
 // ─── KV Sync Panel ───────────────────────────────────────────────────────────
 function KvPanel({ kvKey, setKvKey, kvStatus, kvLastSaved, kvSave, kvLoad, kvPanel, setKvPanel, kvApi }) {
@@ -1517,8 +1520,6 @@ function KvPanel({ kvKey, setKvKey, kvStatus, kvLastSaved, kvSave, kvLoad, kvPan
   );
 }
 
-const inputStyle = { background:"#111", border:"1px solid #2a2a3a", color:TXT_PRIMARY,
-  padding:"8px 10px", borderRadius:4, fontSize:12, fontFamily:"'Courier New',monospace" };
 
 // ─── Mini-components ──────────────────────────────────────────────────────────
 function AppHeader() {

@@ -3,33 +3,568 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Preact Test</title>
+  <title>Gokart Strategi</title>
   <style>
-    body { background: #0a0a0f; color: #F4F4F8; font-family: monospace; padding: 40px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a0f; color: #F4F4F8; font-family: 'Courier New', monospace; }
+    #app { min-height: 100vh; }
+    input, button { font-family: 'Courier New', monospace; }
+    button { cursor: pointer; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+    input[type=number] { -moz-appearance: textfield; }
+    .tbl { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { padding: 9px 8px; text-align: left; color: #FF6B6B; font-size: 10px;
+         letter-spacing: 1px; background: #1a1a2e; border-bottom: 2px solid #FF6B6B; }
+    td { padding: 7px 8px; border-bottom: 1px solid #1a1a2e; white-space: nowrap; }
+    .card { background: #0d0d14; border-radius: 8px; padding: 14px;
+            border: 1px solid #1a1a2e; margin-bottom: 14px; }
+    .ctitle { font-size: 11px; letter-spacing: 3px; color: #FF6B6B;
+              margin-bottom: 12px; font-weight: 900; }
+    .hdr { background: linear-gradient(135deg,#1a0a2e,#0d1117);
+           border-bottom: 2px solid #FF6B6B; padding: 14px 22px;
+           display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .tab { background: transparent; border: none;
+           border-bottom: 2px solid transparent;
+           color: #B8B8C4; padding: 10px 14px; font-size: 11px;
+           letter-spacing: 2px; font-weight: 700; margin-bottom: -2px; }
+    .tab.on { background: #1a1a2e; border-bottom-color: #FF6B6B; color: #fff; }
+    .pit-ban { padding: 12px 24px; text-align: center; font-size: 14px;
+               font-weight: 900; color: #fff; }
+    ::selection { background: #FFE066; color: #000; }
   </style>
 </head>
 <body>
-<div id="root"></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/preact/10.19.3/preact.umd.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/preact/10.19.3/hooks/hooks.umd.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/htm/3.1.1/htm.umd.js"></script>
+<div id="app"></div>
 <script>
-const { h, render } = preact;
-const { useState }  = preactHooks;
-const html = htm.bind(h);
+var RACE=120, PIT=50/60, MINP=7, MINS=7, MAXS=20, PBB=1.5;
+var COLORS=["#FF6B6B","#FFA94D","#FFE066","#69DB7C","#4DABF7","#DA77F2","#FF8FB3","#7CFFAD"];
+var KV="https://gokart-api.allansinmail.workers.dev";
 
-function App() {
-  const [count, setCount] = useState(0);
-  return html`
-    <div>
-      <h1>🏁 Preact + htm fungerer!</h1>
-      <p>Teller: ${count}</p>
-      <button onClick=${() => setCount(count + 1)}>Klikk meg</button>
-    </div>
-  `;
+var S={
+  page:"setup", mode:"boost", bi:10, bd:1, nd:3, k1:"", k2:"",
+  drivers:[{name:"Fører 1",lap:55,str:"55,0"},{name:"Fører 2",lap:57,str:"57,0"},{name:"Fører 3",lap:60,str:"60,0"}],
+  sched:[], done:[], alaps:{}, started:false, t0:null,
+  tab:"live", mt:"", log:[], kk:"mitt-lag-2025", ks:"", now:Date.now()
+};
+
+function set(p){ Object.assign(S,p); draw(); }
+
+function fmt(m){
+  if(m==null||isNaN(m)) return"--:--";
+  var sg=m<0?"-":"", a=Math.abs(m);
+  return sg+String(Math.floor(a)).padStart(2,"0")+":"+String(Math.round((a-Math.floor(a))*60)).padStart(2,"0");
+}
+function pLap(s){
+  if(!s&&s!==0) return null;
+  var v=parseFloat(String(s).replace(",","."));
+  return isNaN(v)?null:Math.max(10,Math.min(180,v));
+}
+function fLap(s){ return s==null?"":String(Math.round(s*10)/10).replace(".",","); }
+function pTime(s){
+  if(!s||!s.trim()) return null;
+  var p=s.split(":");
+  return p.length===2?(parseInt(p[0])||0)+(parseInt(p[1])||0)/60:parseFloat(s)||null;
+}
+function el(t,a){
+  var e=document.createElement(t);
+  if(a) Object.keys(a).forEach(function(k){
+    var v=a[k];
+    if(k==="style"&&typeof v==="object") Object.assign(e.style,v);
+    else if(k==="cls") e.className=v;
+    else if(/^on/.test(k)) e.addEventListener(k.slice(2).toLowerCase(),v);
+    else if(k==="val"&&(t==="input"||t==="select")) e.value=v||"";
+    else if(k==="ph") e.placeholder=v;
+    else if(k==="ty") e.type=v;
+    else if(k==="min") e.min=v;
+    else if(k==="max") e.max=v;
+    else if(k==="step") e.step=v;
+    else if(k==="im") e.setAttribute("inputmode",v);
+    else e[k]=v;
+  });
+  for(var i=2;i<arguments.length;i++){
+    var c=arguments[i];
+    if(c==null||c===false) continue;
+    if(Array.isArray(c)) c.forEach(function(x){ if(x) e.appendChild(typeof x==="string"||typeof x==="number"?document.createTextNode(String(x)):x); });
+    else e.appendChild(typeof c==="string"||typeof c==="number"?document.createTextNode(String(c)):c);
+  }
+  return e;
+}
+function dot(col,sz){
+  return el("span",{style:{background:col,width:sz||"10px",height:sz||"10px",borderRadius:"50%",display:"inline-block",flexShrink:"0"}});
+}
+function row(l,v,col){
+  return el("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:"6px"}},
+    el("span",{style:{color:"#9A9AA8",fontSize:"11px"}},l),
+    el("span",{style:{color:col||"#F4F4F8",fontWeight:"700"}},String(v))
+  );
+}
+function inp(ex){
+  return Object.assign({background:"#111",border:"1px solid #2a2a3a",color:"#F4F4F8",
+    padding:"8px 10px",borderRadius:"4px",fontSize:"13px"},ex);
 }
 
-render(h(App, null), document.getElementById("root"));
+function bw(){
+  if(S.mode!=="boost") return[];
+  var w=[];
+  for(var t=S.bi;t<RACE;t+=S.bi) w.push({s:t,e:t+S.bd});
+  return w;
+}
+function inBw(pe){
+  return bw().some(function(b){ return pe>=b.s&&pe<=b.e; });
+}
+function shiftBw(pe,lap){
+  var wu=(lap/60)*2;
+  bw().forEach(function(b){
+    if(pe>b.s-wu-PIT&&pe<b.e) pe=b.e+0.05;
+  });
+  return pe;
+}
+
+function buildStints(rc,dtu,dsu,cc,pd,k1,k2){
+  var dr=S.drivers, n=dr.length;
+  var tl=RACE-rc; if(tl<=0) return[];
+  var pn=Math.max(0,MINP-pd), mn=pn+1;
+  var sf=Math.ceil(tl/(MAXS-PBB));
+  var ns=Math.max(mn,sf,Math.min(n,mn));
+  var td=RACE-(cc+ns-1)*PIT, fs=td/n;
+  var rs=dr.map(function(_,i){ return Math.max(0,fs-dtu[i]); });
+  var tot=rs.reduce(function(a,b){return a+b;},0)||1;
+  var al=rs.map(function(r){ return Math.max(0,Math.round((r/tot)*ns)); });
+  var df=ns-al.reduce(function(a,b){return a+b;},0);
+  while(df!==0){
+    var di2=df>0?1:-1, pk=0;
+    for(var d2=1;d2<n;d2++) if(di2>0?rs[d2]>rs[pk]:al[d2]>al[pk]) pk=d2;
+    al[pk]+=di2; df-=di2; if(al[pk]<0) al[pk]=0;
+  }
+  var asgn=[], tmp=al.slice();
+  for(var s=0;s<ns;s++){
+    var best=-1;
+    for(var d=0;d<n;d++){
+      if(tmp[d]<=0) continue;
+      if(asgn.length>0&&asgn[asgn.length-1]===d&&n>1) continue;
+      if(best===-1||tmp[d]>tmp[best]) best=d;
+    }
+    if(best===-1){best=tmp.indexOf(Math.max.apply(null,tmp));if(best===-1)best=s%n;}
+    asgn.push(best); tmp[best]--;
+  }
+  var tt=rs.slice(), sc2=al.slice(), alloc=dr.map(function(){return 0;}), clk=rc, res=[];
+  for(var si=0;si<ns;si++){
+    var di=asgn[si], last=si===ns-1, laps=dr[di].lap;
+    var lft=sc2[di]-alloc[di];
+    var dur=lft>0?tt[di]/lft:MINS;
+    dur=Math.max(MINS,Math.min(MAXS-PBB,dur));
+    var pe=last?null:clk+dur;
+    if(!last&&pe){
+      var sh=shiftBw(pe,laps);
+      if(sh!==pe){dur=Math.min(MAXS-PBB,Math.max(MINS,sh-clk));pe=clk+dur;}
+    }
+    if(last){dur=Math.min(MAXS,RACE-clk);pe=null;}
+    if(clk+dur+(last?0:PIT)>RACE+0.01) dur=Math.max(MINS,RACE-clk-(last?0:PIT));
+    var px=pe?pe+PIT:null, pba=pe?clk+dur-PBB:null;
+    var sn=cc+si+1, kn=sn%2===1?k1:k2;
+    res.push({stint:sn,kartNum:kn,driver:di,driverName:dr[di].name,
+      startTime:+clk.toFixed(3),duration:+dur.toFixed(3),endTime:+(clk+dur).toFixed(3),
+      pitEntry:pe?+pe.toFixed(3):null,pitExit:px?+px.toFixed(3):null,
+      pitBoardAt:pba?+pba.toFixed(3):null,
+      estimatedLaps:Math.floor((dur*60)/laps),
+      inBoostConflict:pe?inBw(pe):false,isCompleted:false});
+    tt[di]-=dur; alloc[di]++; clk=px?px:clk+dur;
+  }
+  return res;
+}
+
+function buildInit(){
+  var sc=buildStints(0,S.drivers.map(function(){return 0;}),S.drivers.map(function(){return 0;}),0,0,S.k1,S.k2);
+  set({sched:sc,done:[],log:[],alaps:{},started:false,t0:null,page:"race",tab:"live"});
+}
+function startRace(){ set({started:true,t0:Date.now()}); }
+function elapsed(){ return S.started?(S.now-S.t0)/60000:0; }
+
+function recPit(exitMin){
+  var cur=S.sched[S.done.length]; if(!cur) return;
+  var cs=cur.actualStart!=null?cur.actualStart:cur.startTime;
+  var pe=exitMin-PIT, ad=Math.max(0,pe-cs);
+  var done2=Object.assign({},cur,{isCompleted:true,actualStart:cs,actualEnd:pe,actualDuration:+ad.toFixed(3)});
+  var nd2=S.done.concat([done2]);
+  var dtu=S.drivers.map(function(){return 0;}), dsu=S.drivers.map(function(){return 0;});
+  nd2.forEach(function(c){dtu[c.driver]+=(c.actualDuration||c.duration);dsu[c.driver]++;});
+  var rem=buildStints(exitMin,dtu,dsu,nd2.length,nd2.length,S.k1,S.k2);
+  var delta=cur.pitEntry!=null?pe-cur.pitEntry:null;
+  var lg=S.log.concat([{stint:cur.stint,driver:cur.driverName,planned:cur.pitEntry,actual:pe,delta:delta,ts:fmt(elapsed())}]);
+  set({done:nd2,sched:nd2.concat(rem),log:lg,mt:""});
+}
+
+function kvSave(){
+  set({ks:"saving"});
+  fetch(KV+"/?key="+encodeURIComponent(S.kk),{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({drivers:S.drivers,mode:S.mode,bi:S.bi,bd:S.bd,k1:S.k1,k2:S.k2,
+      sched:S.sched,done:S.done,alaps:S.alaps,log:S.log,started:S.started,t0:S.t0})
+  }).then(function(){set({ks:"saved"});setTimeout(function(){set({ks:""}); },3000);})
+    .catch(function(){set({ks:"error"});setTimeout(function(){set({ks:""}); },4000);});
+}
+function kvLoad(){
+  set({ks:"loading"});
+  fetch(KV+"/?key="+encodeURIComponent(S.kk)).then(function(r){
+    if(r.status===404){set({ks:"notfound"});setTimeout(function(){set({ks:""}); },3000);return;}
+    r.json().then(function(d){
+      var p={ks:"loaded"};
+      if(d.drivers) p.drivers=d.drivers;
+      if(d.mode) p.mode=d.mode;
+      if(d.bi!=null) p.bi=d.bi;
+      if(d.bd!=null) p.bd=d.bd;
+      if(d.k1!=null) p.k1=d.k1;
+      if(d.k2!=null) p.k2=d.k2;
+      if(d.sched){p.sched=d.sched;p.page="race";}
+      if(d.done) p.done=d.done;
+      if(d.alaps) p.alaps=d.alaps;
+      if(d.log) p.log=d.log;
+      if(d.started!=null) p.started=d.started;
+      if(d.t0) p.t0=d.t0;
+      set(p); setTimeout(function(){set({ks:""}); },3000);
+    });
+  }).catch(function(){set({ks:"error"});setTimeout(function(){set({ks:""}); },4000);});
+}
+
+setInterval(function(){ if(S.started) set({now:Date.now()}); },1000);
+
+function draw(){
+  var app=document.getElementById("app");
+  app.innerHTML="";
+  app.appendChild(S.page==="setup"?drawSetup():drawRace());
+}
+
+function drawSetup(){
+  var d=el("div",{style:{minHeight:"100vh",background:"#0a0a0f"}});
+  d.appendChild(el("div",{cls:"hdr"},
+    el("span",null,"🏁"),
+    el("div",null,
+      el("div",{style:{fontSize:"17px",fontWeight:"900",letterSpacing:"4px"}},"GOKART STRATEGI"),
+      el("div",{style:{fontSize:"10px",letterSpacing:"3px",color:"#FF6B6B"}},"BEDRIFTSSERIEN")
+    )
+  ));
+  var w=el("div",{style:{maxWidth:"680px",margin:"0 auto",padding:"20px 16px"}});
+  d.appendChild(w);
+
+  // Mode card
+  var mc=el("div",{cls:"card"});
+  mc.appendChild(el("div",{cls:"ctitle"},"LØPSMODUS"));
+  var mg=el("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginBottom:S.mode==="boost"?"12px":"0"}});
+  [["speed4","🏎 Speed 4","Uten boost"],["boost","⚡ Speed 4+Boost","Med boost"],["nboost","🏁 Speed 5","Uten boost"]].forEach(function(m){
+    var on=S.mode===m[0];
+    mg.appendChild(el("button",{
+      style:{background:on?"#FF6B6B":"#111",border:"2px solid "+(on?"#FF6B6B":"#2a2a3a"),
+        color:on?"#000":"#F4F4F8",borderRadius:"6px",padding:"10px 6px",textAlign:"center",width:"100%"},
+      onclick:function(){set({mode:m[0]});}
+    },el("div",{style:{fontSize:"12px",fontWeight:"700"}},m[1]),
+      el("div",{style:{fontSize:"10px",color:on?"#1a0000":"#9A9AA8",marginTop:"3px"}},m[2])));
+  });
+  mc.appendChild(mg);
+  if(S.mode==="boost"){
+    var bc=el("div",{style:{background:"#0a0a0f",borderRadius:"6px",padding:"12px",border:"1px solid #2a2a3a"}});
+    bc.appendChild(el("div",{style:{fontSize:"10px",color:"#FFE066",letterSpacing:"2px",marginBottom:"10px"}},"⚡ BOOST-KONFIGURASJON"));
+    var bg=el("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px"}});
+    var bid=el("div",null,
+      el("label",{style:{display:"block",fontSize:"11px",color:"#B8B8C4",marginBottom:"5px"}},"Boost hvert X minutt"),
+      el("input",{ty:"number",min:"5",max:"30",val:S.bi,style:inp({width:"70px",fontSize:"18px",fontWeight:"900",color:"#FFE066",textAlign:"center"}),
+        onchange:function(e){set({bi:parseInt(e.target.value)||10});}}),
+      el("div",{style:{fontSize:"11px",color:"#9A9AA8",marginTop:"4px"}},Math.floor(119/S.bi)+" boosts")
+    );
+    var bdd=el("div",null,
+      el("label",{style:{display:"block",fontSize:"11px",color:"#B8B8C4",marginBottom:"5px"}},"Boost varer (sekunder)"),
+      el("input",{ty:"number",min:"15",max:"180",step:"5",val:Math.round(S.bd*60),style:inp({width:"70px",fontSize:"18px",fontWeight:"900",color:"#FFE066",textAlign:"center"}),
+        onchange:function(e){set({bd:(parseInt(e.target.value)||60)/60});}}),
+      el("div",{style:{fontSize:"11px",color:"#9A9AA8",marginTop:"4px"}},Math.round(S.bd*60)+" sek")
+    );
+    bg.appendChild(bid); bg.appendChild(bdd); bc.appendChild(bg); mc.appendChild(bc);
+  }
+  w.appendChild(mc);
+
+  // Num drivers
+  var nc=el("div",{cls:"card"});
+  nc.appendChild(el("div",{cls:"ctitle"},"ANTALL FØRERE"));
+  var nr=el("div",{style:{display:"flex",gap:"8px"}});
+  [3,4,5,6,7,8].forEach(function(n){
+    nr.appendChild(el("button",{
+      style:{width:"44px",height:"44px",background:S.nd===n?"#FF6B6B":"#111",
+        border:"2px solid "+(S.nd===n?"#FF6B6B":"#2a2a3a"),
+        color:S.nd===n?"#000":"#F4F4F8",borderRadius:"6px",fontWeight:"900",fontSize:"14px"},
+      onclick:function(){
+        var dr=S.drivers.slice();
+        while(dr.length<n) dr.push({name:"Fører "+(dr.length+1),lap:58,str:"58,0"});
+        set({nd:n,drivers:dr.slice(0,n)});
+      }
+    },String(n)));
+  });
+  nc.appendChild(nr); w.appendChild(nc);
+
+  // Kart
+  var kc=el("div",{cls:"card"});
+  kc.appendChild(el("div",{cls:"ctitle"},"KARTNUMMER"));
+  var kg=el("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px"}});
+  [["Kart A (odde)","k1",S.k1],["Kart B (partall)","k2",S.k2]].forEach(function(k){
+    var key=k[1];
+    kg.appendChild(el("div",{style:{background:"#111",borderRadius:"6px",padding:"12px",border:"1px solid #2a2a3a"}},
+      el("div",{style:{fontSize:"11px",color:"#FF6B6B",marginBottom:"8px",fontWeight:"700"}},k[0]),
+      el("input",{ty:"number",min:"1",max:"99",val:k[2],ph:"–",
+        style:inp({width:"100%",fontSize:"22px",fontWeight:"900",color:"#FFE066",textAlign:"center"}),
+        onchange:function(e){var p={};p[key]=e.target.value;set(p);}})
+    ));
+  });
+  kc.appendChild(kg); w.appendChild(kc);
+
+  // Drivers
+  var dc=el("div",{cls:"card"});
+  dc.appendChild(el("div",{cls:"ctitle"},"FØRER-OPPSETT"));
+  S.drivers.forEach(function(dr,i){
+    var dv=el("div",{style:{marginBottom:"12px"}});
+    var nr2=el("div",{style:{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px"}});
+    nr2.appendChild(dot(COLORS[i]));
+    var ni=el("input",{val:dr.name,style:inp({flex:"1"})});
+    ni.addEventListener("change",function(e){
+      var dd=S.drivers.slice(); dd[i]=Object.assign({},dd[i],{name:e.target.value}); set({drivers:dd});
+    });
+    nr2.appendChild(ni); dv.appendChild(nr2);
+    var lr=el("div",{style:{display:"flex",alignItems:"center",gap:"8px",paddingLeft:"18px"}});
+    lr.appendChild(el("span",{style:{fontSize:"11px",color:"#9A9AA8",minWidth:"90px"}},"Rundetid (sek)"));
+    var li=el("input",{ty:"text",im:"decimal",ph:"36,1",
+      val:dr.str!=null?dr.str:fLap(dr.lap),
+      style:inp({width:"80px",color:"#FFE066",fontWeight:"700",textAlign:"center"})});
+    li.addEventListener("input",function(e){
+      var raw=e.target.value, p=pLap(raw);
+      var dd=S.drivers.slice(); dd[i]=Object.assign({},dd[i],{str:raw}); if(p) dd[i].lap=p; set({drivers:dd});
+    });
+    li.addEventListener("blur",function(e){
+      var p=pLap(e.target.value);
+      if(p){var dd=S.drivers.slice(); dd[i]=Object.assign({},dd[i],{str:fLap(p),lap:p}); set({drivers:dd});}
+    });
+    lr.appendChild(li);
+    lr.appendChild(el("span",{style:{fontSize:"11px",color:"#9A9AA8"}},(dr.lap/60).toFixed(3)+" min"));
+    dv.appendChild(lr); dc.appendChild(dv);
+  });
+  w.appendChild(dc);
+
+  // KV
+  var kvc=el("div",{cls:"card"});
+  kvc.appendChild(el("div",{cls:"ctitle"},"☁ SKY-SYNKRONISERING"));
+  kvc.appendChild(el("div",{style:{fontSize:"11px",color:"#9A9AA8",marginBottom:"10px"}},"Bruk samme sesjonsnøkkel på alle enheter."));
+  var kvr=el("div",{style:{display:"flex",gap:"8px",flexWrap:"wrap",alignItems:"center"}});
+  var kvi=el("input",{val:S.kk,ph:"sesjonsnøkkel",style:inp({width:"180px"})});
+  kvi.addEventListener("change",function(e){set({kk:e.target.value});});
+  kvr.appendChild(kvi);
+  kvr.appendChild(el("button",{style:{background:"#69DB7C",border:"none",color:"#000",padding:"10px 16px",borderRadius:"6px",fontWeight:"900",fontSize:"12px"},onclick:kvSave},"↑ LAGRE"));
+  kvr.appendChild(el("button",{style:{background:"#4DABF7",border:"none",color:"#000",padding:"10px 16px",borderRadius:"6px",fontWeight:"900",fontSize:"12px"},onclick:kvLoad},"↓ HENT"));
+  kvc.appendChild(kvr);
+  if(S.ks){
+    var sc2={saving:"#FFE066",loading:"#FFE066",saved:"#69DB7C",loaded:"#69DB7C",error:"#FF6B6B",notfound:"#FF6B6B"};
+    var st2={saving:"⏳ Lagrer...",loading:"⏳ Henter...",saved:"✓ Lagret!",loaded:"✓ Hentet!",error:"✗ Feil",notfound:"✗ Ikke funnet"};
+    kvc.appendChild(el("div",{style:{marginTop:"8px",fontSize:"11px",color:sc2[S.ks]||"#F4F4F8"}},st2[S.ks]||""));
+  }
+  w.appendChild(kvc);
+
+  // Build button
+  w.appendChild(el("button",{
+    style:{background:"linear-gradient(135deg,#FF6B6B,#cc2a21)",border:"none",color:"#fff",
+      padding:"16px",borderRadius:"8px",width:"100%",fontSize:"14px",
+      fontWeight:"900",letterSpacing:"3px",textTransform:"uppercase",
+      boxShadow:"0 4px 20px rgba(255,107,107,.4)"},
+    onclick:buildInit
+  },"⚡ BEREGN STRATEGI"));
+
+  return d;
+}
+
+function drawRace(){
+  var e=elapsed(), sc=S.sched, ci=S.done.length;
+  var cur=sc[ci], nxt=sc[ci+1], pd=S.done.length;
+  var cs=cur?(cur.actualStart!=null?cur.actualStart:cur.startTime):null;
+  var ti=S.started&&cs!=null?e-cs:0;
+  var pba=cur?cur.pitBoardAt:null;
+  var sp=S.started&&cur&&pba!=null&&e>=pba;
+  var pu=sp&&e>=pba+(S.drivers[cur.driver]?S.drivers[cur.driver].lap/60:1);
+  var bws=bw(), tp=sc.length-1;
+  var w=el("div",{style:{minHeight:"100vh",background:"#0a0a0f"}});
+
+  if(sp) w.appendChild(el("div",{cls:"pit-ban",style:{background:pu?"#c0392b":"#a05400"}},
+    "🪧 PIT-SKILT UT! — "+cur.driverName.toUpperCase()+" — KJØR ÉN RUNDE TIL, SÅ PIT!"+(pu?" ⚠️ BUFFER-RUNDE!":"")));
+
+  // Header
+  var hdr=el("div",{cls:"hdr"});
+  hdr.appendChild(el("span",null,"🏁"));
+  hdr.appendChild(el("span",{style:{fontSize:"15px",fontWeight:"900",letterSpacing:"3px"}},"GOKART STRATEGI"));
+  var clks=el("div",{style:{display:"flex",gap:"20px"}});
+  clks.appendChild(el("div",null,el("div",{style:{fontSize:"9px",color:"#9A9AA8",letterSpacing:"2px"}},"LØPSTID"),
+    el("div",{style:{fontSize:"22px",fontWeight:"900",color:e>110?"#FF6B6B":"#FFE066"}},fmt(e))));
+  clks.appendChild(el("div",null,el("div",{style:{fontSize:"9px",color:"#9A9AA8",letterSpacing:"2px"}},"GJENSTÅR"),
+    el("div",{style:{fontSize:"22px",fontWeight:"900",color:"#69DB7C"}},fmt(Math.max(0,120-e)))));
+  if(cur) clks.appendChild(el("div",null,el("div",{style:{fontSize:"9px",color:"#9A9AA8",letterSpacing:"2px"}},"TID I STINT"),
+    el("div",{style:{fontSize:"22px",fontWeight:"900",color:sp?"#FF6B6B":ti>=15?"#FFA94D":"#F4F4F8"}},fmt(ti))));
+  hdr.appendChild(clks);
+  var hb=el("div",{style:{marginLeft:"auto",display:"flex",gap:"8px",alignItems:"center",flexWrap:"wrap"}});
+  if(!S.started) hb.appendChild(el("button",{style:{background:"#69DB7C",border:"none",color:"#000",padding:"10px 16px",borderRadius:"6px",fontWeight:"900",fontSize:"12px"},onclick:startRace},"▶ START LØP"));
+  else hb.appendChild(el("span",{style:{fontSize:"10px",color:"#69DB7C",letterSpacing:"2px"}},"● LØPET PÅGÅR"));
+  hb.appendChild(el("span",{style:{fontSize:"11px",color:"#9A9AA8"}},"Pit: ",el("b",{style:{color:pd<7?"#FFA94D":"#69DB7C"}},String(pd)),"/7"));
+  hb.appendChild(el("button",{style:{background:"#111",border:"1px solid #2a2a3a",color:"#F4F4F8",padding:"10px 14px",borderRadius:"6px",fontSize:"12px"},onclick:function(){set({page:"setup"});}},"← OPPSETT"));
+  hdr.appendChild(hb); w.appendChild(hdr);
+
+  // Tabs
+  var tabs=el("div",{style:{display:"flex",gap:"4px",borderBottom:"2px solid #1a1a2e",padding:"0 14px",overflowX:"auto"}});
+  [["live","🔴 LIVE"],["strategy","📋 STRATEGI"],["log","📝 LOGG"]].forEach(function(t){
+    tabs.appendChild(el("button",{cls:"tab"+(S.tab===t[0]?" on":""),onclick:function(){set({tab:t[0]});}},t[1]));
+  });
+  w.appendChild(tabs);
+
+  var ct=el("div",{style:{maxWidth:"1300px",margin:"0 auto",padding:"14px"}});
+  w.appendChild(ct);
+
+  if(S.tab==="live"){
+    var gr=el("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"14px"}});
+
+    // Current
+    var cc=el("div",{style:{background:"#111",borderRadius:"8px",padding:"18px",border:"2px solid "+(cur?COLORS[cur.driver]:"#1a1a2e")}});
+    cc.appendChild(el("div",{style:{fontSize:"10px",letterSpacing:"3px",color:"#FF6B6B",marginBottom:"10px"}},"NÅVÆRENDE STINT #"+(ci+1)));
+    if(cur){
+      var ct2=el("div",{style:{display:"flex",alignItems:"center",gap:"10px",marginBottom:"14px"}});
+      ct2.appendChild(dot(COLORS[cur.driver],"14px"));
+      ct2.appendChild(el("span",{style:{fontSize:"18px",fontWeight:"900"}},cur.driverName));
+      if(cur.kartNum) ct2.appendChild(el("span",{style:{marginLeft:"auto",background:"#2a0a4e",border:"1px solid #DA77F2",color:"#DA77F2",borderRadius:"6px",padding:"3px 12px",fontSize:"14px",fontWeight:"900"}},"🏎 #"+cur.kartNum));
+      cc.appendChild(ct2);
+      cc.appendChild(row("Planlagt varighet",fmt(cur.duration),"#FFE066"));
+      cc.appendChild(row("🪧 Pit-skilt ved",fmt(cur.pitBoardAt),"#FFA94D"));
+      cc.appendChild(row("Planlagt pit inn",cur.pitEntry?fmt(cur.pitEntry):"Siste","#FF6B6B"));
+      cc.appendChild(row("Est. runder",cur.estimatedLaps,"#4DABF7"));
+      if(S.started){
+        var rb=el("div",{style:{marginTop:"12px",padding:"12px",background:"#0d0d14",borderRadius:"6px",border:"1px solid #2a2a3a"}});
+        rb.appendChild(el("div",{style:{fontSize:"10px",color:"#FFA94D",letterSpacing:"2px",marginBottom:"8px"}},"📝 REGISTRER NÅR NESTE FØRER ER UTE"));
+        var rr=el("div",{style:{display:"flex",gap:"8px",flexWrap:"wrap"}});
+        var mi=el("input",{val:S.mt,ph:fmt(e),style:inp({width:"80px"})});
+        mi.addEventListener("input",function(ev){set({mt:ev.target.value});});
+        rr.appendChild(mi);
+        rr.appendChild(el("button",{style:{background:"#69DB7C",border:"none",color:"#000",padding:"8px 12px",borderRadius:"4px",fontWeight:"900",fontSize:"12px"},onclick:function(){recPit(pTime(S.mt)||e);}},"✓ FØRER UTE"));
+        rr.appendChild(el("button",{style:{background:"#4DABF7",border:"none",color:"#000",padding:"8px 12px",borderRadius:"4px",fontWeight:"900",fontSize:"12px"},onclick:function(){recPit(e);}},"⏱ NÅ ("+fmt(e)+")"));
+        rb.appendChild(rr); cc.appendChild(rb);
+      }
+    } else {
+      cc.appendChild(el("div",{style:{color:"#9A9AA8",textAlign:"center",padding:"20px"}},"Løpet er fullført! 🏁"));
+    }
+    gr.appendChild(cc);
+
+    // Next
+    var nc=el("div",{style:{background:"#111",borderRadius:"8px",padding:"18px",border:"1px solid "+(nxt?COLORS[nxt.driver]+"55":"#1a1a2e")}});
+    nc.appendChild(el("div",{style:{fontSize:"10px",letterSpacing:"3px",color:"#9A9AA8",marginBottom:"10px"}},"NESTE STINT #"+(ci+2)));
+    if(nxt){
+      var nt=el("div",{style:{display:"flex",alignItems:"center",gap:"10px",marginBottom:"14px"}});
+      nt.appendChild(dot(COLORS[nxt.driver],"12px"));
+      nt.appendChild(el("span",{style:{fontSize:"15px",fontWeight:"700",color:"#B8B8C4"}},nxt.driverName));
+      if(nxt.kartNum) nt.appendChild(el("span",{style:{marginLeft:"auto",background:"#0a2a1a",border:"1px solid #69DB7C",color:"#69DB7C",borderRadius:"12px",padding:"3px 10px",fontSize:"13px",fontWeight:"900"}},"🏎 #"+nxt.kartNum));
+      nc.appendChild(nt);
+      nc.appendChild(row("Planlagt start",fmt(nxt.startTime)));
+      nc.appendChild(row("Planlagt varighet",fmt(nxt.duration),"#FFE066"));
+      nc.appendChild(row("🪧 Pit-skilt ved",fmt(nxt.pitBoardAt),"#FFA94D"));
+      nc.appendChild(row("Est. runder",nxt.estimatedLaps,"#4DABF7"));
+    } else {
+      nc.appendChild(el("div",{style:{color:"#9A9AA8",fontSize:"13px"}},"Siste stint pågår"));
+    }
+    gr.appendChild(nc);
+
+    // Boost
+    if(S.mode==="boost"&&S.started){
+      var br=el("div",{style:{gridColumn:"1/-1",background:"#111",borderRadius:"8px",padding:"12px",border:"1px solid #1a1a2e",display:"flex",gap:"10px",flexWrap:"wrap",alignItems:"center"}});
+      br.appendChild(el("span",{style:{fontSize:"10px",letterSpacing:"3px",color:"#FFE066"}},"⚡ NESTE BOOST"));
+      bws.filter(function(b){return b.e>e;}).slice(0,6).forEach(function(b){
+        var act=b.s<=e&&b.e>e;
+        var bc2=el("div",{style:{background:act?"#3a2a00":"#0a0a0f",border:"1px solid "+(act?"#FFE066":"#1a1a2e"),borderRadius:"6px",padding:"6px 12px",textAlign:"center",minWidth:"60px"}});
+        if(act) bc2.appendChild(el("div",{style:{fontSize:"12px",fontWeight:"900",color:"#FFE066"}},"🔥 AKTIV!"));
+        else{bc2.appendChild(el("div",{style:{fontSize:"12px",fontWeight:"900",color:"#FFE066"}},fmt(b.s)));bc2.appendChild(el("div",{style:{fontSize:"10px",color:"#9A9AA8"}},"om "+fmt(b.s-e)));}
+        br.appendChild(bc2);
+      });
+      gr.appendChild(br);
+    }
+
+    // KV row
+    var kvr2=el("div",{style:{gridColumn:"1/-1",display:"flex",gap:"8px",alignItems:"center",flexWrap:"wrap"}});
+    kvr2.appendChild(el("span",{style:{fontSize:"11px",color:"#9A9AA8"}},"☁ Sky:"));
+    var kvi2=el("input",{val:S.kk,style:inp({width:"160px",fontSize:"11px"})});
+    kvi2.addEventListener("change",function(e){set({kk:e.target.value});});
+    kvr2.appendChild(kvi2);
+    kvr2.appendChild(el("button",{style:{background:"#69DB7C",border:"none",color:"#000",padding:"8px 12px",borderRadius:"4px",fontWeight:"900",fontSize:"11px"},onclick:kvSave},"↑ LAGRE"));
+    kvr2.appendChild(el("button",{style:{background:"#4DABF7",border:"none",color:"#000",padding:"8px 12px",borderRadius:"4px",fontWeight:"900",fontSize:"11px"},onclick:kvLoad},"↓ HENT"));
+    if(S.ks){
+      var ksc={saved:"#69DB7C",loaded:"#69DB7C",error:"#FF6B6B",saving:"#FFE066",loading:"#FFE066",notfound:"#FF6B6B"};
+      var kst={saved:"✓ Lagret",loaded:"✓ Hentet",error:"✗ Feil",saving:"⏳...",loading:"⏳...",notfound:"✗ Ikke funnet"};
+      kvr2.appendChild(el("span",{style:{fontSize:"11px",color:ksc[S.ks]||"#F4F4F8"}},kst[S.ks]||""));
+    }
+    gr.appendChild(kvr2);
+    ct.appendChild(gr);
+  }
+
+  if(S.tab==="strategy"){
+    var tw=el("div",{cls:"tbl",style:{background:"#111",borderRadius:"8px",border:"1px solid #1a1a2e"}});
+    var tbl=el("table",null);
+    tbl.appendChild(el("thead",null,el("tr",null,
+      ["#","KART","FØRER","START","VARIGHET","🪧 SKILT","PIT INN","PIT UT","RND","STATUS"].map(function(h){
+        return el("th",null,h);
+      })
+    )));
+    var tb=el("tbody",null);
+    sc.forEach(function(s,i){
+      var isc=i===ci&&S.started, isd=s.isCompleted;
+      var tr=el("tr",{style:{background:isc?"#2a1a00":isd?"#0a200a":i%2===0?"#0d0d14":"#111",opacity:isd?"0.7":"1"}});
+      tr.appendChild(el("td",{style:{fontWeight:"700",color:isc?"#FFE066":"#FF6B6B"}},(isc?"▶ ":isd?"✓ ":"")+s.stint));
+      if(s.kartNum){
+        var iodd=s.stint%2===1;
+        tr.appendChild(el("td",null,el("span",{style:{background:iodd?"#2a0a4e":"#0a2a1a",border:"1px solid "+(iodd?"#DA77F2":"#69DB7C"),color:iodd?"#DA77F2":"#69DB7C",borderRadius:"4px",padding:"1px 6px",fontSize:"10px",fontWeight:"900"}},(iodd?"A":"B")+"·"+s.kartNum)));
+      } else tr.appendChild(el("td",{style:{color:"#555"}},"—"));
+      var dc=el("td",null); var ds=el("span",{style:{display:"inline-flex",alignItems:"center",gap:"5px"}}); ds.appendChild(dot(COLORS[s.driver],"7px")); ds.appendChild(document.createTextNode(s.driverName)); dc.appendChild(ds); tr.appendChild(dc);
+      tr.appendChild(el("td",{style:{color:"#B8B8C4"}},fmt(s.startTime)));
+      tr.appendChild(el("td",{style:{color:"#FFE066",fontWeight:"700"}},fmt(s.duration)));
+      tr.appendChild(el("td",{style:{color:"#FFA94D"}},s.pitBoardAt?fmt(s.pitBoardAt):"—"));
+      tr.appendChild(el("td",{style:{color:s.pitEntry?"#FF6B6B":"#555"}},s.pitEntry?fmt(s.pitEntry):"—"));
+      tr.appendChild(el("td",{style:{color:s.pitExit?"#69DB7C":"#555"}},s.pitExit?fmt(s.pitExit):"—"));
+      tr.appendChild(el("td",{style:{color:"#4DABF7",fontWeight:"700"}},String(s.estimatedLaps)));
+      var st=isd?el("span",{style:{color:"#69DB7C"}},"✓ FERDIG"):isc?el("span",{style:{color:"#FFE066"}},"▶ PÅGÅR"):s.inBoostConflict?el("span",{style:{color:"#FF6B6B"}},"⚡ BOOST"):el("span",{style:{color:"#7A7A88"}},"VENTER");
+      tr.appendChild(el("td",null,st)); tb.appendChild(tr);
+    });
+    tbl.appendChild(tb); tw.appendChild(tbl);
+    tw.appendChild(el("div",{style:{padding:"8px 12px",fontSize:"11px",color:"#9A9AA8"}},
+      "Pitstop: ",el("b",{style:{color:tp<7?"#FF6B6B":"#FFA94D"}},String(tp)),tp<7?" ⚠️ Under minimum!":"",
+      " · Gjennomført: ",el("b",{style:{color:"#69DB7C"}},String(pd))));
+    ct.appendChild(tw);
+  }
+
+  if(S.tab==="log"){
+    if(S.log.length===0){
+      ct.appendChild(el("div",{style:{background:"#111",borderRadius:"8px",padding:"32px",textAlign:"center",color:"#555",border:"1px solid #1a1a2e"}},"📝 Ingen justeringer ennå"));
+    } else {
+      S.log.forEach(function(lg){
+        var ea=lg.delta!=null&&lg.delta<-0.5, la=lg.delta!=null&&lg.delta>0.5;
+        var lc=el("div",{style:{background:"#111",borderRadius:"8px",padding:"14px",marginBottom:"10px",
+          border:"1px solid "+(ea?"#69DB7C":la?"#FFA94D":"#1a1a2e"),
+          borderLeft:"4px solid "+(ea?"#69DB7C":la?"#FFA94D":"#555")}});
+        var lh=el("div",{style:{display:"flex",gap:"12px",marginBottom:"8px",fontSize:"11px"}});
+        lh.appendChild(el("span",{style:{color:"#FF6B6B",fontWeight:"900"}},"STINT #"+lg.stint));
+        lh.appendChild(el("span",{style:{fontWeight:"700"}},lg.driver));
+        lh.appendChild(el("span",{style:{marginLeft:"auto",color:"#9A9AA8"}},"@ "+lg.ts));
+        lc.appendChild(lh);
+        var lg2=el("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px"}});
+        [["PLANLAGT",fmt(lg.planned),"#B8B8C4"],["FAKTISK",fmt(lg.actual),"#F4F4F8"],
+          ["AVVIK",lg.delta!=null?(ea?"-":la?"+":"")+fmt(Math.abs(lg.delta)):"—",ea?"#69DB7C":la?"#FFA94D":"#F4F4F8"]
+        ].forEach(function(x){
+          lg2.appendChild(el("div",{style:{background:"#0d0d14",borderRadius:"6px",padding:"8px",textAlign:"center"}},
+            el("div",{style:{fontSize:"9px",color:"#9A9AA8",letterSpacing:"2px",marginBottom:"4px"}},x[0]),
+            el("div",{style:{fontSize:"14px",fontWeight:"700",color:x[2]}},x[1])));
+        });
+        lc.appendChild(lg2); ct.appendChild(lc);
+      });
+    }
+  }
+
+  return w;
+}
+
+draw();
 </script>
 </body>
 </html>

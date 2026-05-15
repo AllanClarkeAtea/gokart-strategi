@@ -1,570 +1,1532 @@
 <!DOCTYPE html>
 <html lang="no">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gokart Strategi</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #0a0a0f; color: #F4F4F8; font-family: 'Courier New', monospace; }
-    #app { min-height: 100vh; }
-    input, button { font-family: 'Courier New', monospace; }
-    button { cursor: pointer; }
-    input[type=number]::-webkit-inner-spin-button,
-    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
-    input[type=number] { -moz-appearance: textfield; }
-    .tbl { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th { padding: 9px 8px; text-align: left; color: #FF6B6B; font-size: 10px;
-         letter-spacing: 1px; background: #1a1a2e; border-bottom: 2px solid #FF6B6B; }
-    td { padding: 7px 8px; border-bottom: 1px solid #1a1a2e; white-space: nowrap; }
-    .card { background: #0d0d14; border-radius: 8px; padding: 14px;
-            border: 1px solid #1a1a2e; margin-bottom: 14px; }
-    .ctitle { font-size: 11px; letter-spacing: 3px; color: #FF6B6B;
-              margin-bottom: 12px; font-weight: 900; }
-    .hdr { background: linear-gradient(135deg,#1a0a2e,#0d1117);
-           border-bottom: 2px solid #FF6B6B; padding: 14px 22px;
-           display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-    .tab { background: transparent; border: none;
-           border-bottom: 2px solid transparent;
-           color: #B8B8C4; padding: 10px 14px; font-size: 11px;
-           letter-spacing: 2px; font-weight: 700; margin-bottom: -2px; }
-    .tab.on { background: #1a1a2e; border-bottom-color: #FF6B6B; color: #fff; }
-    .pit-ban { padding: 12px 24px; text-align: center; font-size: 14px;
-               font-weight: 900; color: #fff; }
-    ::selection { background: #FFE066; color: #000; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gokart Strategi</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+html,body{min-height:100vh;background:#0D0D0D;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif}
+body{padding:0;margin:0}
+.wrapper{max-width:680px;margin:0 auto;padding:0 1rem 3rem}
+
+/* Header */
+.hdr{padding:1.1rem 0 .5rem;display:flex;align-items:center;gap:12px;border-bottom:1px solid #2A2A2A;margin-bottom:1rem}
+.hdr-logo{font-size:22px;font-weight:800;color:#E8002D;letter-spacing:-.02em}
+.hdr-logo span{color:#fff}
+.hdr-sub{font-size:11px;color:#555;margin-top:1px}
+
+:focus-visible{outline:3px solid #E8002D;outline-offset:2px;border-radius:4px}
+.card{background:#161616;border:1px solid #2A2A2A;border-radius:10px;padding:.9rem 1.1rem;margin-bottom:.85rem}
+.sec{font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.7rem}
+.fl{font-size:11px;color:#C0C0C0;display:block;margin-bottom:3px}
+input[type=number],input[type=text]{height:33px;padding:0 8px;font-size:13px;border:1px solid #2A2A2A;border-radius:6px;background:#1E1E1E;color:#fff;width:100%}
+input:focus{outline:2px solid #E8002D;outline-offset:1px;border-color:#E8002D}
+input.err{border:2px solid #E8002D;background:#1A0A0A}
+select{height:33px;padding:0 8px;font-size:12px;border:1px solid #2A2A2A;border-radius:6px;background:#1E1E1E;color:#fff;width:100%}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+.row:last-child{margin-bottom:0}
+.field{display:flex;flex-direction:column;flex:1;min-width:95px}
+
+/* Mode buttons */
+.mbtns{display:flex;gap:6px;flex-wrap:wrap}
+.mb{flex:1;min-width:110px;padding:8px;border:1.5px solid #2A2A2A;border-radius:8px;background:#1E1E1E;color:#C0C0C0;font-size:12px;cursor:pointer;text-align:center;line-height:1.4;position:relative;transition:all .15s}
+.mb[aria-pressed=true]{background:#1A0005;border-color:#E8002D;color:#FF6B6B;font-weight:700}
+.mb[aria-pressed=true]::after{content:'✓';position:absolute;top:4px;right:6px;font-size:10px;color:#E8002D}
+.mb .s{font-size:10px;color:#555;font-weight:400;display:block;margin-top:1px}
+
+/* Boost settings */
+.bbox{background:#111;border:1px solid #2A2A2A;border-radius:8px;padding:12px 14px;margin-top:9px}
+.bflds{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.bfld{display:flex;flex-direction:column;gap:6px}
+.bfld label{font-size:11px;color:#C0C0C0;font-weight:500;white-space:nowrap}
+.binput-row{display:flex;align-items:center;gap:10px}
+.binput-row input[type=number]{width:64px;height:38px;font-size:16px;font-weight:700;text-align:center;flex-shrink:0}
+.binput-row .ul{font-size:13px;color:#C0C0C0;white-space:nowrap;font-weight:500}
+.bfld .rh{font-size:10px;color:#555}
+
+/* Driver count */
+.dcs{display:flex;gap:6px;margin-bottom:16px}
+.dcb{flex:1;height:44px;border:1.5px solid #2A2A2A;border-radius:8px;background:#1E1E1E;color:#555;font-size:17px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;position:relative}
+.dcb:hover:not(.on){background:#2A2A2A;color:#C0C0C0;border-color:#444}
+.dcb.on{background:#E8002D;color:#fff;border-color:#E8002D;box-shadow:0 0 10px #E8002D44}
+.dcb.on::after{content:'';position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:7px solid #E8002D}
+.kpair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kslot label{font-size:12px;color:#C0C0C0;display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.knr{width:70px;height:44px;text-align:center;font-size:20px;font-weight:700;border:1.5px solid #2A2A2A;border-radius:8px;background:#1E1E1E;color:#fff}
+.kb{display:inline-flex;align-items:center;justify-content:center;border-radius:5px;font-weight:700;flex-shrink:0;border:1.5px solid}
+.ka{background:#1A0005;color:#FF6B6B;border-color:#E8002D}
+.kbg{background:#1A1000;color:#F5D98B;border-color:#C9A84C}
+.dg{display:grid;grid-template-columns:1fr 105px;gap:7px;align-items:center;margin-bottom:5px}
+.dg.hdr span{font-size:10px;color:#555;font-weight:700}
+
+/* Buttons */
+.gbtn{width:100%;padding:12px;background:#E8002D;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-top:3px;letter-spacing:.02em;transition:background .15s}
+.gbtn:hover{background:#C0001F}
+.btn{padding:6px 12px;border:1.5px solid #2A2A2A;border-radius:6px;background:#1E1E1E;color:#C0C0C0;font-size:12px;cursor:pointer;font-weight:600;white-space:nowrap}
+.btn:hover{background:#2A2A2A}
+.btn.pr{background:#E8002D;color:#fff;border-color:#E8002D}
+.btn.pr:hover{background:#C0001F}
+.btn.dn{background:#1A0005;color:#FF6B6B;border-color:#E8002D}
+
+/* Tabs */
+.tabs{display:flex;border-bottom:1px solid #2A2A2A;margin-bottom:.9rem;gap:2px}
+.tab{padding:8px 14px;font-size:13px;cursor:pointer;color:#555;border-bottom:3px solid transparent;margin-bottom:-1px;font-weight:600;border-radius:4px 4px 0 0;transition:all .15s;background:none;border-left:none;border-right:none;border-top:none}
+.tab.on{color:#E8002D;border-bottom:3px solid #E8002D;font-weight:700}
+.tab:hover:not(.on){color:#C0C0C0;background:#1A1A1A}
+.tc{display:none}.tc.on{display:block}
+
+/* Alerts */
+.al{border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:9px;display:flex;align-items:flex-start;gap:8px;border:1.5px solid}
+.al-w{background:#1A0E00;border-color:#C9A84C;color:#F5D98B}
+.al-i{background:#1A0005;border-color:#E8002D;color:#FF6B6B}
+.al-s{background:#0A1A0A;border-color:#39D353;color:#39D353}
+
+/* Badges */
+.badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700;border:1px solid transparent}
+.bd{background:#0A1A0A;color:#39D353;border-color:#39D353}
+.ba{background:#1A0005;color:#FF6B6B;border-color:#E8002D}
+.bn{background:#1A1000;color:#F5D98B;border-color:#C9A84C}
+.bp{background:#1A0005;color:#FF6B6B;border-color:#E8002D}
+.bf{background:#1E1E1E;color:#555;border-color:#2A2A2A}
+.br{background:#0A0A1A;color:#8B9FFF;border-color:#4455CC}
+.bbo{background:#1A1000;color:#F5D98B;border-color:#C9A84C}
+.bmode{background:#1A0005;color:#FF6B6B;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid #E8002D}
+
+/* Stats */
+.sg{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:.85rem}
+.sc{background:#161616;border:1px solid #2A2A2A;border-radius:8px;padding:9px 10px}
+.sv{font-size:19px;font-weight:700;color:#fff}
+.sl{font-size:10px;color:#555;margin-top:2px}
+
+/* Timeline */
+.tlr{display:flex;justify-content:space-between;font-size:10px;color:#444;margin-bottom:2px}
+.tlw{position:relative;height:50px;background:#111;border-radius:6px;overflow:hidden;border:1px solid #2A2A2A;margin-bottom:3px}
+.tls{position:absolute;top:0;height:100%;display:flex;align-items:center;padding:0 4px;overflow:hidden;white-space:nowrap}
+.bb{position:relative;height:7px;border-radius:4px;background:#111;margin-bottom:7px}
+.bs{position:absolute;height:100%;border-radius:3px;background:#C9A84C;opacity:.8}
+.nl{position:absolute;top:0;width:3px;background:#E8002D;height:50px;z-index:20;pointer-events:none;box-shadow:0 0 8px #E8002D88}
+
+/* Table */
+table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+th{text-align:left;font-size:10px;font-weight:700;color:#555;padding:6px 5px;border-bottom:1px solid #2A2A2A}
+td{padding:6px 5px;border-bottom:1px solid #1E1E1E;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#C0C0C0}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#1A1A1A}
+.pit-bg{background:#0D0D0D}
+.sign-td{color:#C9A84C;font-weight:700;font-size:11px}
+
+/* Live */
+.lc{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;color:#fff;letter-spacing:.02em}
+.rbox{background:#111;border:1px solid #2A2A2A;border-radius:8px;padding:10px 12px;margin-bottom:9px}
+.rrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.rrow:last-child{margin-bottom:0}
+.lsm{font-size:12px;color:#C0C0C0;white-space:nowrap;font-weight:600}
+
+/* Oversikt */
+.dcard{background:#161616;border:1px solid #2A2A2A;border-radius:10px;padding:.85rem 1rem;margin-bottom:.75rem}
+.dcard-hd{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.dcard-nm{font-size:15px;font-weight:700;color:#fff}
+.dcard-tag{font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;border:1.5px solid}
+.dm{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.dmi{background:#111;border-radius:8px;padding:8px 10px;border:1px solid #2A2A2A}
+.dmv{font-size:20px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
+.dml{font-size:10px;color:#555;margin-top:2px;font-weight:600}
+.dbw{margin-bottom:4px}
+.dbl{font-size:10px;color:#555;display:flex;justify-content:space-between;margin-bottom:3px}
+.db{height:10px;background:#111;border-radius:5px;overflow:hidden;position:relative;border:1px solid #2A2A2A}
+.dbf{height:100%;border-radius:5px}
+.dba{position:absolute;top:0;height:100%;width:2px;background:#E8002D;opacity:.7}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.chip{background:#111;border-radius:6px;padding:6px 10px;font-size:11px;border:1px solid #2A2A2A}
+.chip-t{color:#C0C0C0;font-weight:600;display:block}
+.chip-s{font-size:10px;color:#C9A84C;display:block;margin-top:2px;font-weight:600}
+.ldp{background:#161616;border:1px solid #2A2A2A;border-radius:10px;padding:.75rem .9rem;margin-bottom:.6rem;display:flex;gap:12px;align-items:flex-start}
+.ldp-b{flex:1;min-width:0}
+.ldp-n{font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.ldb{height:10px;background:#111;border-radius:5px;overflow:hidden;margin-top:6px;position:relative;border:1px solid #2A2A2A}
+.ldbf{height:100%;border-radius:5px}
+.ldbp{position:absolute;top:0;height:100%;width:2px;background:#C9A84C;opacity:.7}
+
+/* Logg */
+.logg-item{background:#161616;border:1px solid #2A2A2A;border-radius:10px;padding:.85rem 1rem;margin-bottom:.75rem}
+.logg-item-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:8px}
+.logg-item-name{font-size:14px;font-weight:700;color:#FFFFFF}
+.logg-item-meta{font-size:11px;color:#555}
+.logg-item-actions{display:flex;gap:6px}
+.logg-detail{font-size:11px;color:#C0C0C0;margin-bottom:.6rem;line-height:1.6}
+.logg-stints{overflow-x:auto;margin-top:.5rem}
+
+/* Responsive */
+@media(max-width:480px){
+  .sg{grid-template-columns:repeat(2,1fr)}
+  .bflds{gap:12px}
+  .hdr-logo{font-size:18px}
+}
+</style>
 </head>
 <body>
-<div id="app"></div>
+<div class="wrapper">
+
+<header class="hdr">
+  <div>
+    <div class="hdr-logo">🏎 Gokart<span>Strategi</span></div>
+    <div class="hdr-sub">F1 Racing Dark · Løpsplanlegger</div>
+  </div>
+</header>
+
+<div role="main">
+<div aria-live="polite" aria-atomic="true" class="sr-only" id="lR"></div>
+<div aria-live="assertive" aria-atomic="true" class="sr-only" id="uR"></div>
+
+<nav class="tabs" role="tablist">
+  <button class="tab on" role="tab" aria-selected="true" data-t="setup" id="tab-setup" aria-controls="tc-setup">⚙ Oppsett</button>
+  <button class="tab" role="tab" aria-selected="false" data-t="oversikt" id="tab-oversikt" aria-controls="tc-oversikt">📊 Oversikt</button>
+  <button class="tab" role="tab" aria-selected="false" data-t="live" id="tab-live" aria-controls="tc-live">▶ Live</button>
+  <button class="tab" role="tab" aria-selected="false" data-t="logg" id="tab-logg" aria-controls="tc-logg">📋 Logg</button>
+</nav>
+
+<!-- ═══ OPPSETT ═══════════════════════════════════════════ -->
+<div class="tc on" id="tc-setup" role="tabpanel" aria-labelledby="tab-setup">
+<div class="card">
+  <h2 class="sec">Løpsmodus</h2>
+  <div class="mbtns" role="group" aria-label="Løpsmodus">
+    <button class="mb" data-m="speed4" aria-pressed="false">⚡ Standard<span class="s">Uten boost</span></button>
+    <button class="mb" data-m="boost" aria-pressed="true">⚡🔥 Standard + Boost<span class="s">Konfigurerbar</span></button>
+    <button class="mb" data-m="speed5" aria-pressed="false">🚀 Nitro<span class="s">Uten boost</span></button>
+  </div>
+  <div id="bbox" class="bbox">
+    <p style="font-size:11px;font-weight:700;color:#C9A84C;margin-bottom:14px">⚡ Boost-innstillinger</p>
+    <div class="bflds">
+      <div class="bfld">
+        <label for="bi">Boost aktiveres hvert</label>
+        <div class="binput-row">
+          <input type="number" id="bi" min="5" max="30" value="10" aria-describedby="biU">
+          <span class="ul" id="biU">minutter</span>
+        </div>
+        <span class="rh">5 – 30 minutter</span>
+      </div>
+      <div class="bfld">
+        <label for="bd">Boost-varighet</label>
+        <div class="binput-row">
+          <input type="number" id="bd" min="20" max="180" value="60" aria-describedby="bdU">
+          <span class="ul" id="bdU">sekunder</span>
+        </div>
+        <span class="rh">20 – 180 sekunder</span>
+      </div>
+    </div>
+    <div class="al al-i" role="note" style="margin-top:12px;margin-bottom:0"><span>⚡ Pitstop unngår boost. Ny fører sikres 2 oppvarmingsrunder.</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 class="sec">Løpsregler</h2>
+  <div class="row">
+    <div class="field"><label for="raceDur" class="fl">Løpstid (min)</label><input type="number" id="raceDur" value="120" min="30" max="240"></div>
+    <div class="field"><label for="minPits" class="fl">Min. pitstop</label><input type="number" id="minPits" value="7" min="1" max="20"></div>
+    <div class="field"><label for="pitDur" class="fl">Pit-varighet (sek)</label><input type="number" id="pitDur" value="50" min="20" max="180"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 class="sec">Kart-numre</h2>
+  <p style="font-size:12px;color:#555;margin-bottom:10px">Kart A = odde stints · Kart B = partall-stints</p>
+  <div class="kpair">
+    <div class="kslot">
+      <label for="kA"><span class="kb ka" style="width:22px;height:22px;font-size:11px" aria-hidden="true">A</span> Kart A</label>
+      <input type="number" id="kA" class="knr" min="1" max="99" oninput="vKart()">
+    </div>
+    <div class="kslot">
+      <label for="kB"><span class="kb kbg" style="width:22px;height:22px;font-size:11px" aria-hidden="true">B</span> Kart B</label>
+      <input type="number" id="kB" class="knr" min="1" max="99" oninput="vKart()">
+    </div>
+  </div>
+  <div id="kErr" style="display:none" class="al al-i" role="alert"><span>⚠ Kart A og B kan ikke ha samme nummer.</span></div>
+</div>
+
+<div class="card">
+  <h2 class="sec">Førere</h2>
+  <p style="font-size:11px;color:#555;font-weight:600;margin-bottom:10px">ANTALL FØRERE</p>
+  <div class="dcs" role="group" aria-label="Antall førere">
+    <button class="dcb" data-n="3" aria-pressed="false">3</button>
+    <button class="dcb on" data-n="4" aria-pressed="true">4</button>
+    <button class="dcb" data-n="5" aria-pressed="false">5</button>
+    <button class="dcb" data-n="6" aria-pressed="false">6</button>
+    <button class="dcb" data-n="7" aria-pressed="false">7</button>
+    <button class="dcb" data-n="8" aria-pressed="false">8</button>
+  </div>
+  <div class="dg hdr" style="margin-top:6px" aria-hidden="true"><span>Navn</span><span>Rundetid (sek, f.eks. 36,1)</span></div>
+  <div id="drvList" role="list"></div>
+</div>
+
+<button class="gbtn" onclick="generate()">🏁 Beregn strategi</button>
+
+<div id="res" style="display:none;margin-top:.85rem">
+  <div class="card">
+    <h2 class="sec">Tidslinje</h2>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap">
+      <span id="mBadge" class="bmode"></span><span id="bSum" style="font-size:11px;color:#555"></span>
+    </div>
+    <div class="tlr" id="tlR" aria-hidden="true"></div>
+    <div id="bBarW" aria-hidden="true"></div>
+    <div class="tlw" id="tlBar" role="img" aria-label="Tidslinje for løpsstrategi"></div>
+  </div>
+  <div class="sg" id="statsG" role="list"></div>
+  <div class="card">
+    <h2 class="sec">Stint-plan</h2>
+    <div style="overflow-x:auto">
+    <table style="min-width:560px" aria-label="Stint-plan">
+      <thead><tr>
+        <th style="width:24px">#</th><th style="width:36px">Kart</th><th>Fører</th>
+        <th style="width:46px">Start</th><th style="width:46px">Slutt</th>
+        <th style="width:40px">Tid</th><th style="width:48px">Runder</th>
+        <th style="width:58px;color:#C9A84C">⚑ Skilt</th>
+        <th style="width:56px">Status</th>
+      </tr></thead>
+      <tbody id="stintTbl"></tbody>
+    </table>
+    </div>
+  </div>
+  <button class="gbtn" style="background:#1A0005;color:#E8002D;border:2px solid #E8002D" onclick="goLive()">▶ Start løp – gå til live</button>
+</div>
+</div>
+
+<!-- ═══ OVERSIKT ══════════════════════════════════════════ -->
+<div class="tc" id="tc-oversikt" role="tabpanel" aria-labelledby="tab-oversikt">
+  <div id="ovrEmpty" style="color:#555;font-size:13px;padding:2rem 0;text-align:center" role="status">
+    <div style="font-size:28px;margin-bottom:8px">📊</div>Beregn en strategi i Oppsett-fanen for å se oversikten.
+  </div>
+  <div id="ovrContent" style="display:none">
+    <div class="card" style="margin-bottom:.6rem">
+      <h2 class="sec">Om oversikten</h2>
+      <p style="font-size:12px;color:#C0C0C0;line-height:1.7">Akkumulerte totaler for hele løpet. Rød strek = snitt. ⚑ Pit-skilt vises 90 sek før pit inn.</p>
+    </div>
+    <div id="ovrLiveSection" style="display:none">
+      <div class="card" style="border:2px solid #E8002D">
+        <h2 class="sec" style="color:#E8002D">▶ Live – kjøretid per fører</h2>
+        <div id="ovrLiveCards" role="list"></div>
+      </div>
+    </div>
+    <div id="ovrCards" role="list"></div>
+    <div class="card">
+      <h2 class="sec">Sammenligning</h2>
+      <table aria-label="Sammenligning per fører">
+        <thead><tr>
+          <th style="width:110px">Fører</th><th style="width:65px;text-align:right">Tid</th>
+          <th style="width:65px;text-align:right">Runder</th><th style="width:55px;text-align:right">Stints</th>
+          <th>Fordeling</th>
+        </tr></thead>
+        <tbody id="ovrTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ LIVE ══════════════════════════════════════════════ -->
+<div class="tc" id="tc-live" role="tabpanel" aria-labelledby="tab-live">
+<div id="lEmpty" style="color:#555;font-size:13px;padding:2rem 0;text-align:center" role="status">
+  <div style="font-size:24px;margin-bottom:8px">⚠</div>Beregn en strategi og klikk "Start løp" først.
+</div>
+<div id="lContent" style="display:none">
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:11px">
+      <div>
+        <div class="lc" id="lClock">0:00</div>
+        <div style="font-size:11px;color:#555">gått</div>
+      </div>
+      <div style="flex:1;min-width:90px">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">
+          <span id="lMBadge" class="bmode"></span>
+          <span id="lBSum" style="font-size:11px;color:#555"></span>
+        </div>
+        <div style="font-size:11px;color:#555;margin-bottom:2px">Gjenstående</div>
+        <div style="font-size:15px;font-weight:700;color:#fff" id="lRem">–</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn pr" id="ssBtn" onclick="togClock()"><span id="ssBtnTxt"> Start klokke</span></button>
+        <button class="btn" onclick="rstClock()">↺ Nullstill</button>
+      </div>
+    </div>
+    <div class="tlr" id="lTlR" aria-hidden="true"></div>
+    <div class="tlw" id="lTlBar"><div class="nl" id="nowL" style="left:0"></div></div>
+    <div id="lBBar" aria-hidden="true"></div>
+  </div>
+
+  <div id="psCard" style="display:none" class="al al-w" role="alert" aria-live="assertive">
+    <div>
+      <div style="font-weight:700;font-size:14px;color:#F5D98B" id="psTxt"></div>
+      <div id="psSub" style="margin-top:3px;font-size:12px;color:#C9A84C"></div>
+    </div>
+  </div>
+  <div id="rpAlert" style="display:none" class="al al-i" role="status" aria-live="polite"><div id="rpTxt"></div></div>
+
+  <div class="card"><h2 class="sec">Neste hendelser</h2><div id="nextAct"></div></div>
+
+  <div class="card">
+    <h2 class="sec">Live-justeringer</h2>
+    <div class="rbox">
+      <div class="rrow">
+        <button class="btn pr" style="background:#1A0E00;color:#C9A84C;border-color:#C9A84C;font-size:14px;font-weight:700;padding:10px 20px" onclick="pitNaa()">🏁 Pit nå</button>
+        <div style="font-size:11px;color:#555;line-height:1.5">Trykk når neste fører kjører ut fra pit. Klokketidspunktet registreres og gjenværende stints rebalanseres med alle regler gjeldende.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="sec">Gjenværende stints</h2>
+    <div id="rpNote" style="display:none" class="al al-i" role="status"><span id="rpNoteT"></span></div>
+    <div style="overflow-x:auto">
+    <table style="min-width:560px" aria-label="Gjenværende stints">
+      <thead><tr>
+        <th style="width:24px">#</th><th style="width:36px">Kart</th><th>Fører</th>
+        <th style="width:46px">Start</th><th style="width:46px">Slutt</th>
+        <th style="width:40px">Tid</th><th style="width:48px">Runder</th>
+        <th style="width:58px;color:#C9A84C">⚑ Skilt</th>
+        <th style="width:70px">Status</th>
+        <th style="width:68px;color:#C0C0C0">Fakt. runder</th>
+        <th style="width:60px;color:#C0C0C0">Avvik</th>
+      </tr></thead>
+      <tbody id="liveTbl"></tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="sec">Hendelseslogg</h2>
+    <div id="logL" style="font-size:12px;color:#555" role="log" aria-live="polite">Ingen hendelser ennå.</div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ LOGG ══════════════════════════════════════════════ -->
+<div class="tc" id="tc-logg" role="tabpanel" aria-labelledby="tab-logg">
+  <div class="card">
+    <h2 class="sec">Lagrede strategier</h2>
+    <p style="font-size:12px;color:#C0C0C0;line-height:1.7;margin-bottom:1rem">
+      Strategier lagres automatisk når du klikker "Lagre strategi". Maks 5 lagrede strategier – den eldste overskrives ved behov.
+    </p>
+    <button id="saveStratBtn" class="gbtn" style="margin-bottom:.5rem" onclick="saveStrategy()">💾 Lagre gjeldende strategi</button>
+    <div id="loggStatus" style="display:none;font-size:12px;font-weight:600;padding:4px 0 10px;text-align:center"></div>
+    <div id="loggEmpty" style="color:#555;font-size:13px;padding:1.5rem 0;text-align:center">
+      <div style="font-size:24px;margin-bottom:8px">📋</div>
+      Ingen lagrede strategier ennå. Beregn en strategi og klikk "Lagre gjeldende strategi".
+    </div>
+    <div id="loggList"></div>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /wrapper -->
+
 <script>
-var RACE=120, PIT=50/60, MINP=7, MINS=7, MAXS=20, PBB=1.5;
-var COLORS=["#FF6B6B","#FFA94D","#FFE066","#69DB7C","#4DABF7","#DA77F2","#FF8FB3","#7CFFAD"];
-var KV="https://gokart-api.allansinmail.workers.dev";
+// ===================================================================
+// REGLER (aldri endres under løp):
+//   MAX_S   = 20 min per enkelt stint
+//   MAX_TOT = 50 min akkumulert per fører
+//   MIN_S   = 7 min minimum stintvarighet
+//   SIGN_B  = 90 sek – pit-skilt vises 90 sek før pit inn
+//   WU      = 2 runder oppvarming etter pit
+// ===================================================================
+const C=['#E8002D','#C9A84C','#39D353','#4FC3F7','#FF6E40','#B39DDB','#80DEEA','#FFCC02'];
+let mode='boost', dcnt=4, drivers=[], stints=[];
+let rSec=7200, minP=7, pitSec=50, boostW=[];
+let lRun=false, lElap=0, lTimer=null, lStints=[], elog=[];
+let actualLaps={}; // keyed by stint sn: user-entered actual lap count
+let kA=null, kB=null, lastBI=10, lastBD=60;
 
-var S={
-  page:"setup", mode:"boost", bi:10, bd:1, nd:3, k1:"", k2:"",
-  drivers:[{name:"Fører 1",lap:55,str:"55,0"},{name:"Fører 2",lap:57,str:"57,0"},{name:"Fører 3",lap:60,str:"60,0"}],
-  sched:[], done:[], alaps:{}, started:false, t0:null,
-  tab:"live", mt:"", log:[], kk:"mitt-lag-2025", ks:"", now:Date.now()
-};
+const MIN_S   = 7*60;
+const MAX_S   = 20*60;
+const MAX_TOT = 50*60;
+const SIGN_B  = 90;
+const WU      = 2;
 
-function set(p){ Object.assign(S,p); draw(); }
+// ── Dvale-resiliens ───────────────────────────────────────────
+// Lagrer reell klokkestartid slik at klokken kan gjensynkroniseres
+// etter dvale/skjermsparer uten å miste løpsdata.
+let lStartWallTime  = null;
+let lElapsedAtStart = 0;
 
-function fmt(m){
-  if(m==null||isNaN(m)) return"--:--";
-  var sg=m<0?"-":"", a=Math.abs(m);
-  return sg+String(Math.floor(a)).padStart(2,"0")+":"+String(Math.round((a-Math.floor(a))*60)).padStart(2,"0");
+function saveState(){
+  if(!lRun) return;
+  try{
+    localStorage.setItem('gk_running','1');
+    localStorage.setItem('gk_wallStart', String(lStartWallTime));
+    localStorage.setItem('gk_elapAtStart', String(lElapsedAtStart));
+    localStorage.setItem('gk_rSec', String(rSec));
+  }catch(e){}
 }
-function pLap(s){
-  if(!s&&s!==0) return null;
-  var v=parseFloat(String(s).replace(",","."));
-  return isNaN(v)?null:Math.max(10,Math.min(180,v));
+function clearState(){
+  try{['gk_running','gk_wallStart','gk_elapAtStart','gk_rSec'].forEach(k=>localStorage.removeItem(k));}catch(e){}
 }
-function fLap(s){ return s==null?"":String(Math.round(s*10)/10).replace(".",","); }
-function pTime(s){
-  if(!s||!s.trim()) return null;
-  var p=s.split(":");
-  return p.length===2?(parseInt(p[0])||0)+(parseInt(p[1])||0)/60:parseFloat(s)||null;
+
+// Kalt når nettleserfanen blir synlig igjen (skjerm våkner)
+function resyncFromWall(){
+  if(!lRun || !lStartWallTime) return;
+  const realElapsed = Math.floor((Date.now() - lStartWallTime)/1000) + lElapsedAtStart;
+  const capped = Math.min(realElapsed, rSec);
+  if(capped > lElap + 2){
+    lElap = capped;
+    fastForwardStints(lElap);
+    tick();
+    addLog(fm(lElap) + ' – Klokke gjensynkronisert etter dvale');
+    shAlert('Klokke gjensynkronisert etter dvale. Sjekk gjenvaerende stints.');
+  }
 }
-function el(t,a){
-  var e=document.createElement(t);
-  if(a) Object.keys(a).forEach(function(k){
-    var v=a[k];
-    if(k==="style"&&typeof v==="object") Object.assign(e.style,v);
-    else if(k==="cls") e.className=v;
-    else if(/^on/.test(k)) e.addEventListener(k.slice(2).toLowerCase(),v);
-    else if(k==="val"&&(t==="input"||t==="select")) e.value=v||"";
-    else if(k==="ph") e.placeholder=v;
-    else if(k==="ty") e.type=v;
-    else if(k==="min") e.min=v;
-    else if(k==="max") e.max=v;
-    else if(k==="step") e.step=v;
-    else if(k==="im") e.setAttribute("inputmode",v);
-    else e[k]=v;
+
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='visible' && lRun) resyncFromWall();
+});
+
+// Oppdater stilte stints basert på faktisk tid etter resync
+function fastForwardStints(nowSec){
+  lStints.forEach(s=>{
+    if(s.type==='drive' && s.status==='active' && s.end<=nowSec){ s.status='done'; }
+    if(s.type==='pit'   && s.status!=='done'    && s.end<=nowSec){ s.status='done'; }
+    if(s.type==='drive' && s.status==='future'  && s.end<=nowSec){ s.status='done'; }
   });
-  for(var i=2;i<arguments.length;i++){
-    var c=arguments[i];
-    if(c==null||c===false) continue;
-    if(Array.isArray(c)) c.forEach(function(x){ if(x) e.appendChild(typeof x==="string"||typeof x==="number"?document.createTextNode(String(x)):x); });
-    else e.appendChild(typeof c==="string"||typeof c==="number"?document.createTextNode(String(c)):c);
+  const hasActive=lStints.some(s=>s.type==='drive'&&s.status==='active');
+  if(!hasActive){
+    const nxt=lStints.find(s=>s.type==='drive'&&s.status==='future'&&s.start<=nowSec);
+    if(nxt){ nxt.status='active'; nxt.aStart=nxt.start; }
   }
-  return e;
-}
-function dot(col,sz){
-  return el("span",{style:{background:col,width:sz||"10px",height:sz||"10px",borderRadius:"50%",display:"inline-block",flexShrink:"0"}});
-}
-function row(l,v,col){
-  return el("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:"6px"}},
-    el("span",{style:{color:"#9A9AA8",fontSize:"11px"}},l),
-    el("span",{style:{color:col||"#F4F4F8",fontWeight:"700"}},String(v))
-  );
-}
-function inp(ex){
-  return Object.assign({background:"#111",border:"1px solid #2a2a3a",color:"#F4F4F8",
-    padding:"8px 10px",borderRadius:"4px",fontSize:"13px"},ex);
 }
 
-function bw(){
-  if(S.mode!=="boost") return[];
-  var w=[];
-  for(var t=S.bi;t<RACE;t+=S.bi) w.push({s:t,e:t+S.bd});
-  return w;
-}
-function inBw(pe){
-  return bw().some(function(b){ return pe>=b.s&&pe<=b.e; });
-}
-function shiftBw(pe,lap){
-  var wu=(lap/60)*2;
-  bw().forEach(function(b){
-    if(pe>b.s-wu-PIT&&pe<b.e) pe=b.e+0.05;
+// ── Hjelpefunksjoner ──────────────────────────────────────────
+function ann(m,u){const e=document.getElementById(u?'uR':'lR');e.textContent='';requestAnimationFrame(()=>e.textContent=m);}
+function pL(v){if(!v||!v.trim())return NaN;const n=parseFloat(v.replace(',','.'));return(isNaN(n)||n<10||n>200)?NaN:n;}
+function fm(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+(s%60).toString().padStart(2,'0');}
+function fmS(s){const m=Math.floor(s/60),sec=Math.round(s%60);return sec===0?m+' min':m+'m '+sec+'s';}
+function fmL(s){return(Math.round(s*10)/10).toFixed(1).replace('.',',');}
+function mlbl(){return mode==='speed4'?'Standard':mode==='boost'?'Standard + Boost':'Nitro';}
+function bsum(){return mode==='boost'?('Boost hvert '+lastBI+' min \u00b7 '+lastBD+' sek'):'';}
+function kNr(sn){return sn%2===1?kA:kB;}
+function kB2(sn){const nr=kNr(sn),isA=sn%2===1;return '<span class="kb '+(isA?'ka':'kbg')+'" style="width:22px;height:22px;font-size:10px;border-radius:4px">'+(nr||'\u2013')+'</span>';}
+function sgAt(e){return e-SIGN_B;}
+
+// ── Tabs ──────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    const id=t.dataset.t;
+    document.querySelectorAll('.tab').forEach(x=>{x.classList.toggle('on',x===t);x.setAttribute('aria-selected',x===t?'true':'false');});
+    document.querySelectorAll('.tc').forEach(x=>x.classList.toggle('on',x.id==='tc-'+id));
+    if(id==='oversikt') rndrOvr();
+    if(id==='logg') rndrLogg(); // async – returns promise, no await needed here
   });
-  return pe;
+  t.addEventListener('keydown',e=>{
+    const ts=[...document.querySelectorAll('.tab')],i=ts.indexOf(t);
+    if(e.key==='ArrowRight'&&i<ts.length-1){ts[i+1].focus();ts[i+1].click();}
+    if(e.key==='ArrowLeft'&&i>0){ts[i-1].focus();ts[i-1].click();}
+  });
+});
+
+document.querySelectorAll('.mb').forEach(b=>b.addEventListener('click',()=>{
+  mode=b.dataset.m;
+  document.querySelectorAll('.mb').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
+  document.getElementById('bbox').style.display=mode==='boost'?'block':'none';
+}));
+
+document.querySelectorAll('.dcb').forEach(b=>b.addEventListener('click',()=>setCount(+b.dataset.n)));
+
+function setCount(n){
+  const old=drivers.slice(); dcnt=n;
+  drivers=Array.from({length:n},(_,i)=>({name:'',lt:40}));
+  old.forEach((o,i)=>{if(i<n){drivers[i].name=o.name;drivers[i].lt=o.lt;}});
+  document.querySelectorAll('.dcb').forEach(b=>{const a=+b.dataset.n===n;b.classList.toggle('on',a);b.setAttribute('aria-pressed',a?'true':'false');});
+  rdDrvs();
 }
 
-function buildStints(rc,dtu,dsu,cc,pd,k1,k2){
-  var dr=S.drivers, n=dr.length;
-  var tl=RACE-rc; if(tl<=0) return[];
-  var pn=Math.max(0,MINP-pd), mn=pn+1;
-  var sf=Math.ceil(tl/(MAXS-PBB));
-  var ns=Math.max(mn,sf,Math.min(n,mn));
-  var td=RACE-(cc+ns-1)*PIT, fs=td/n;
-  var rs=dr.map(function(_,i){ return Math.max(0,fs-dtu[i]); });
-  var tot=rs.reduce(function(a,b){return a+b;},0)||1;
-  var al=rs.map(function(r){ return Math.max(0,Math.round((r/tot)*ns)); });
-  var df=ns-al.reduce(function(a,b){return a+b;},0);
-  while(df!==0){
-    var di2=df>0?1:-1, pk=0;
-    for(var d2=1;d2<n;d2++) if(di2>0?rs[d2]>rs[pk]:al[d2]>al[pk]) pk=d2;
-    al[pk]+=di2; df-=di2; if(al[pk]<0) al[pk]=0;
+function rdDrvs(){
+  document.getElementById('drvList').innerHTML=drivers.map((d,i)=>`
+    <div class="dg" role="listitem" style="margin-bottom:6px">
+      <input type="text" id="d${i}n" value="${d.name}" placeholder="F\u00f8rer ${i+1}" oninput="drivers[${i}].name=this.value" aria-label="Navn p\u00e5 f\u00f8rer ${i+1}"
+        style="border-left:4px solid ${C[i%C.length]};height:33px;padding:0 8px;font-size:13px;border-radius:6px;background:#1E1E1E;color:#fff;width:100%;border-top:1px solid #2A2A2A;border-right:1px solid #2A2A2A;border-bottom:1px solid #2A2A2A">
+      <input type="text" inputmode="decimal" id="d${i}l" value="" placeholder="36,1" oninput="onLap(${i},this.value)" aria-label="Rundetid for f\u00f8rer ${i+1}"
+        style="height:33px;padding:0 8px;font-size:13px;border:1px solid #2A2A2A;border-radius:6px;background:#1E1E1E;color:#fff;width:100%;font-variant-numeric:tabular-nums">
+    </div>`).join('');
+}
+
+function onLap(i,v){
+  const p=pL(v); if(!isNaN(p)) drivers[i].lt=p;
+  const e=document.getElementById('d'+i+'l'); if(!e) return;
+  const bad=isNaN(p)&&v.trim()!==''; e.classList.toggle('err',bad); e.setAttribute('aria-invalid',bad?'true':'false');
+}
+
+function vKart(){
+  const a=+document.getElementById('kA').value, b=+document.getElementById('kB').value;
+  const bad=a&&b&&a===b;
+  document.getElementById('kA').classList.toggle('err',bad);
+  document.getElementById('kB').classList.toggle('err',bad);
+  document.getElementById('kErr').style.display=bad?'flex':'none';
+  kA=(a>=1&&a<=99)?a:null; kB=(b>=1&&b<=99)?b:null;
+}
+
+// ── Boost ─────────────────────────────────────────────────────
+function mkBW(biM,bdS,rS){if(mode!=='boost')return[];const bi=biM*60,bw=[];for(let t=bi;t<rS;t+=bi)bw.push([t,Math.min(t+bdS,rS)]);return bw;}
+function afterB(t){for(const[a,b]of boostW){if(t>=a&&t<b)return b;}return t;}
+function nextB(t){for(const[a]of boostW){if(a>t)return a;}return Infinity;}
+function vPit(ps0,pS,wu){
+  if(mode!=='boost') return{ps:ps0,pe:ps0+pS};
+  let ps=ps0;
+  for(let i=0;i<30;i++){
+    const p2=afterB(ps); if(p2!==ps){ps=p2;continue;}
+    const pe=ps+pS,nb=nextB(pe); if(nb===Infinity||pe+wu<=nb) break;
+    const be=boostW.find(([a])=>a===nb); ps=be?be[1]:nb+1;
   }
-  var asgn=[], tmp=al.slice();
-  for(var s=0;s<ns;s++){
-    var best=-1;
-    for(var d=0;d<n;d++){
-      if(tmp[d]<=0) continue;
-      if(asgn.length>0&&asgn[asgn.length-1]===d&&n>1) continue;
-      if(best===-1||tmp[d]>tmp[best]) best=d;
-    }
-    if(best===-1){best=tmp.indexOf(Math.max.apply(null,tmp));if(best===-1)best=s%n;}
-    asgn.push(best); tmp[best]--;
-  }
-  var tt=rs.slice(), sc2=al.slice(), alloc=dr.map(function(){return 0;}), clk=rc, res=[];
-  for(var si=0;si<ns;si++){
-    var di=asgn[si], last=si===ns-1, laps=dr[di].lap;
-    var lft=sc2[di]-alloc[di];
-    var dur=lft>0?tt[di]/lft:MINS;
-    dur=Math.max(MINS,Math.min(MAXS-PBB,dur));
-    var pe=last?null:clk+dur;
-    if(!last&&pe){
-      var sh=shiftBw(pe,laps);
-      if(sh!==pe){dur=Math.min(MAXS-PBB,Math.max(MINS,sh-clk));pe=clk+dur;}
-    }
-    if(last){dur=Math.min(MAXS,RACE-clk);pe=null;}
-    if(clk+dur+(last?0:PIT)>RACE+0.01) dur=Math.max(MINS,RACE-clk-(last?0:PIT));
-    var px=pe?pe+PIT:null, pba=pe?clk+dur-PBB:null;
-    var sn=cc+si+1, kn=sn%2===1?k1:k2;
-    res.push({stint:sn,kartNum:kn,driver:di,driverName:dr[di].name,
-      startTime:+clk.toFixed(3),duration:+dur.toFixed(3),endTime:+(clk+dur).toFixed(3),
-      pitEntry:pe?+pe.toFixed(3):null,pitExit:px?+px.toFixed(3):null,
-      pitBoardAt:pba?+pba.toFixed(3):null,
-      estimatedLaps:Math.floor((dur*60)/laps),
-      inBoostConflict:pe?inBw(pe):false,isCompleted:false});
-    tt[di]-=dur; alloc[di]++; clk=px?px:clk+dur;
-  }
-  return res;
+  return{ps,pe:ps+pS};
 }
 
-function buildInit(){
-  var sc=buildStints(0,S.drivers.map(function(){return 0;}),S.drivers.map(function(){return 0;}),0,0,S.k1,S.k2);
-  set({sched:sc,done:[],log:[],alaps:{},started:false,t0:null,page:"race",tab:"live"});
-}
-function startRace(){ set({started:true,t0:Date.now()}); }
-function elapsed(){ return S.started?(S.now-S.t0)/60000:0; }
-
-function recPit(exitMin){
-  var cur=S.sched[S.done.length]; if(!cur) return;
-  var cs=cur.actualStart!=null?cur.actualStart:cur.startTime;
-  var pe=exitMin-PIT, ad=Math.max(0,pe-cs);
-  var done2=Object.assign({},cur,{isCompleted:true,actualStart:cs,actualEnd:pe,actualDuration:+ad.toFixed(3)});
-  var nd2=S.done.concat([done2]);
-  var dtu=S.drivers.map(function(){return 0;}), dsu=S.drivers.map(function(){return 0;});
-  nd2.forEach(function(c){dtu[c.driver]+=(c.actualDuration||c.duration);dsu[c.driver]++;});
-  var rem=buildStints(exitMin,dtu,dsu,nd2.length,nd2.length,S.k1,S.k2);
-  var delta=cur.pitEntry!=null?pe-cur.pitEntry:null;
-  var lg=S.log.concat([{stint:cur.stint,driver:cur.driverName,planned:cur.pitEntry,actual:pe,delta:delta,ts:fmt(elapsed())}]);
-  set({done:nd2,sched:nd2.concat(rem),log:lg,mt:""});
+// ── Regler (håndheves i all planlegging) ──────────────────────
+// Klemme et enkelt stint slik at det ikke bryter MAX_S eller MAX_TOT
+function clampStint(di, proposed, accDT){
+  const maxByTotal=Math.max(0, MAX_TOT-accDT[di]);
+  return Math.min(proposed, MAX_S, maxByTotal);
 }
 
-function kvSave(){
-  set({ks:"saving"});
-  fetch(KV+"/?key="+encodeURIComponent(S.kk),{
-    method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({drivers:S.drivers,mode:S.mode,bi:S.bi,bd:S.bd,k1:S.k1,k2:S.k2,
-      sched:S.sched,done:S.done,alaps:S.alaps,log:S.log,started:S.started,t0:S.t0})
-  }).then(function(){set({ks:"saved"});setTimeout(function(){set({ks:""}); },3000);})
-    .catch(function(){set({ks:"error"});setTimeout(function(){set({ks:""}); },4000);});
+// ── Strategimotor ─────────────────────────────────────────────
+// kartHistory[di] = list of 'odd'|'even' parities this driver has driven
+let kartHistory = {};
+function resetKartHistory(){ kartHistory={}; }
+function recordKart(di, sn){ if(!kartHistory[di])kartHistory[di]=[]; kartHistory[di].push(sn%2===1?'odd':'even'); }
+
+// Penalty: prefer driver who hasn't driven this kart-parity yet
+function kartPenalty(di, stintNum){
+  const parity=stintNum%2===1?'odd':'even';
+  return (kartHistory[di]||[]).filter(p=>p===parity).length;
 }
-function kvLoad(){
-  set({ks:"loading"});
-  fetch(KV+"/?key="+encodeURIComponent(S.kk)).then(function(r){
-    if(r.status===404){set({ks:"notfound"});setTimeout(function(){set({ks:""}); },3000);return;}
-    r.json().then(function(d){
-      var p={ks:"loaded"};
-      if(d.drivers) p.drivers=d.drivers;
-      if(d.mode) p.mode=d.mode;
-      if(d.bi!=null) p.bi=d.bi;
-      if(d.bd!=null) p.bd=d.bd;
-      if(d.k1!=null) p.k1=d.k1;
-      if(d.k2!=null) p.k2=d.k2;
-      if(d.sched){p.sched=d.sched;p.page="race";}
-      if(d.done) p.done=d.done;
-      if(d.alaps) p.alaps=d.alaps;
-      if(d.log) p.log=d.log;
-      if(d.started!=null) p.started=d.started;
-      if(d.t0) p.t0=d.t0;
-      set(p); setTimeout(function(){set({ks:""}); },3000);
+
+function buildSeq(nS, dT, startSn){
+  const n=drivers.length, tgt=rSec/n;
+  const info=drivers.map((d,i)=>({i, def:(tgt-dT[i])+(Math.random()*2-1), sl:0}));
+  const base=Math.floor(nS/n), ext=nS%n;
+  info.sort((a,b)=>b.def-a.def);
+  info.forEach((d,r)=>{ d.sl=base+(r<ext?1:0); });
+  const seq=[]; let last=-1;
+  const sn0=startSn||1;
+  for(let s=0;s<nS;s++){
+    const thisStintNum=sn0+s;
+    let cands=info.filter(d=>d.sl>0&&d.i!==last);
+    if(!cands.length) cands=info.filter(d=>d.sl>0);
+    // Sort: kart-parity preference first (prefer new kart), then deficit
+    cands.sort((a,b)=>{
+      const kDiff=kartPenalty(a.i,thisStintNum)-kartPenalty(b.i,thisStintNum);
+      if(kDiff!==0) return kDiff;
+      return b.def-a.def;
     });
-  }).catch(function(){set({ks:"error"});setTimeout(function(){set({ks:""}); },4000);});
-}
-
-setInterval(function(){ if(S.started) set({now:Date.now()}); },1000);
-
-function draw(){
-  var app=document.getElementById("app");
-  app.innerHTML="";
-  app.appendChild(S.page==="setup"?drawSetup():drawRace());
-}
-
-function drawSetup(){
-  var d=el("div",{style:{minHeight:"100vh",background:"#0a0a0f"}});
-  d.appendChild(el("div",{cls:"hdr"},
-    el("span",null,"🏁"),
-    el("div",null,
-      el("div",{style:{fontSize:"17px",fontWeight:"900",letterSpacing:"4px"}},"GOKART STRATEGI"),
-      el("div",{style:{fontSize:"10px",letterSpacing:"3px",color:"#FF6B6B"}},"BEDRIFTSSERIEN")
-    )
-  ));
-  var w=el("div",{style:{maxWidth:"680px",margin:"0 auto",padding:"20px 16px"}});
-  d.appendChild(w);
-
-  // Mode card
-  var mc=el("div",{cls:"card"});
-  mc.appendChild(el("div",{cls:"ctitle"},"LØPSMODUS"));
-  var mg=el("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginBottom:S.mode==="boost"?"12px":"0"}});
-  [["speed4","🏎 Speed 4","Uten boost"],["boost","⚡ Speed 4+Boost","Med boost"],["nboost","🏁 Speed 5","Uten boost"]].forEach(function(m){
-    var on=S.mode===m[0];
-    mg.appendChild(el("button",{
-      style:{background:on?"#FF6B6B":"#111",border:"2px solid "+(on?"#FF6B6B":"#2a2a3a"),
-        color:on?"#000":"#F4F4F8",borderRadius:"6px",padding:"10px 6px",textAlign:"center",width:"100%"},
-      onclick:function(){set({mode:m[0]});}
-    },el("div",{style:{fontSize:"12px",fontWeight:"700"}},m[1]),
-      el("div",{style:{fontSize:"10px",color:on?"#1a0000":"#9A9AA8",marginTop:"3px"}},m[2])));
-  });
-  mc.appendChild(mg);
-  if(S.mode==="boost"){
-    var bc=el("div",{style:{background:"#0a0a0f",borderRadius:"6px",padding:"12px",border:"1px solid #2a2a3a"}});
-    bc.appendChild(el("div",{style:{fontSize:"10px",color:"#FFE066",letterSpacing:"2px",marginBottom:"10px"}},"⚡ BOOST-KONFIGURASJON"));
-    var bg=el("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px"}});
-    var bid=el("div",null,
-      el("label",{style:{display:"block",fontSize:"11px",color:"#B8B8C4",marginBottom:"5px"}},"Boost hvert X minutt"),
-      el("input",{ty:"number",min:"5",max:"30",val:S.bi,style:inp({width:"70px",fontSize:"18px",fontWeight:"900",color:"#FFE066",textAlign:"center"}),
-        onchange:function(e){set({bi:parseInt(e.target.value)||10});}}),
-      el("div",{style:{fontSize:"11px",color:"#9A9AA8",marginTop:"4px"}},Math.floor(119/S.bi)+" boosts")
-    );
-    var bdd=el("div",null,
-      el("label",{style:{display:"block",fontSize:"11px",color:"#B8B8C4",marginBottom:"5px"}},"Boost varer (sekunder)"),
-      el("input",{ty:"number",min:"15",max:"180",step:"5",val:Math.round(S.bd*60),style:inp({width:"70px",fontSize:"18px",fontWeight:"900",color:"#FFE066",textAlign:"center"}),
-        onchange:function(e){set({bd:(parseInt(e.target.value)||60)/60});}}),
-      el("div",{style:{fontSize:"11px",color:"#9A9AA8",marginTop:"4px"}},Math.round(S.bd*60)+" sek")
-    );
-    bg.appendChild(bid); bg.appendChild(bdd); bc.appendChild(bg); mc.appendChild(bc);
+    const p=cands[0];
+    seq.push(p.i);
+    recordKart(p.i, thisStintNum);
+    p.sl--; p.def-=tgt/nS; last=p.i;
   }
-  w.appendChild(mc);
+  return seq;
+}
 
-  // Num drivers
-  var nc=el("div",{cls:"card"});
-  nc.appendChild(el("div",{cls:"ctitle"},"ANTALL FØRERE"));
-  var nr=el("div",{style:{display:"flex",gap:"8px"}});
-  [3,4,5,6,7,8].forEach(function(n){
-    nr.appendChild(el("button",{
-      style:{width:"44px",height:"44px",background:S.nd===n?"#FF6B6B":"#111",
-        border:"2px solid "+(S.nd===n?"#FF6B6B":"#2a2a3a"),
-        color:S.nd===n?"#000":"#F4F4F8",borderRadius:"6px",fontWeight:"900",fontSize:"14px"},
-      onclick:function(){
-        var dr=S.drivers.slice();
-        while(dr.length<n) dr.push({name:"Fører "+(dr.length+1),lap:58,str:"58,0"});
-        set({nd:n,drivers:dr.slice(0,n)});
+// Tildel klokkeslett til en sekvens. Respekterer MAX_S og MAX_TOT.
+function assignTimes(seq, t0, pitsDone, dT, snStart){
+  const tgtPits=Math.max(0,minP-pitsDone);
+  const res=[]; let clk=t0; const acc=dT.slice(); let pd=0, sn=snStart||1;
+  // Target equal drive time per driver over the whole race
+  const totalPitTime=Math.max(tgtPits,minP)*pitSec;
+  const tgtPD=Math.round((rSec-t0-totalPitTime)/drivers.length);
+
+  for(let s=0;s<seq.length;s++){
+    const di=seq[s], d=drivers[di], lT=d.lt;
+    const sR=seq.length-s, pL2=Math.max(0,tgtPits-pd);
+    const tR=rSec-clk, dR=tR-pL2*pitSec;
+    const dSA=seq.slice(s+1).filter(x=>x===di).length;
+    const dD=tgtPD-acc[di], dSL=1+dSA;
+    // Multi-stint drivers (dSL>1) absorb imbalance by going closer to MAX_S.
+    // Single-stint remaining: just give them their exact deficit.
+    let sl;
+    if(dSL>1){
+      // Give a larger share now so each stint stays near equal-share
+      const baseShare=Math.round(dD/dSL);
+      const pushedHigh=Math.min(MAX_S, Math.round(dD*0.6));
+      sl=Math.round(pushedHigh*0.7+(dR/sR)*0.3);
+    } else {
+      sl=Math.round(dD*0.8+(dR/sR)*0.2);
+    }
+    sl=clampStint(di, sl, acc);
+    sl=Math.max(MIN_S, sl);
+    const rv=pL2*(pitSec+MIN_S);
+    sl=Math.min(sl, tR-rv);
+    sl=Math.max(MIN_S, Math.min(MAX_S, sl));
+    if(sl<=0) sl=Math.min(MIN_S,tR);
+
+    const end=Math.min(clk+sl,rSec), sgT=sgAt(end), bc=boostW.filter(([a])=>a>=clk&&a<end).length;
+    res.push({type:'drive',di,name:drivers[di].name||('F\u00f8rer '+(di+1)),start:clk,end,col:C[di%C.length],lT,signAt:sgT,status:'future',aStart:null,rep:false,sn,bc,plannedRounds:Math.floor((end-clk)/lT)});
+    acc[di]+=(end-clk); clk=end; sn++;
+    if(clk>=rSec) break;
+
+    if(s<seq.length-1){
+      pd++;
+      const ndi=seq[s+1], wu=WU*(drivers[ndi]?.lt||40);
+      const{ps,pe}=vPit(clk,pitSec,wu);
+      if(ps>=rSec) break;
+      // Forleng forrige stint til pit-tidspunkt hvis reglene tillater det
+      if(ps>clk){
+        const li=res.length-1;
+        if(res[li]?.type==='drive'){
+          const extra=ps-clk;
+          const newDur=(res[li].end-res[li].start)+extra;
+          if(newDur<=MAX_S && acc[res[li].di]+extra<=MAX_TOT){
+            acc[res[li].di]+=extra;
+            res[li].end=ps; res[li].signAt=sgAt(ps);
+            res[li].bc=boostW.filter(([a])=>a>=res[li].start&&a<ps).length;
+          }
+        }
       }
-    },String(n)));
-  });
-  nc.appendChild(nr); w.appendChild(nc);
-
-  // Kart
-  var kc=el("div",{cls:"card"});
-  kc.appendChild(el("div",{cls:"ctitle"},"KARTNUMMER"));
-  var kg=el("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px"}});
-  [["Kart A (odde)","k1",S.k1],["Kart B (partall)","k2",S.k2]].forEach(function(k){
-    var key=k[1];
-    kg.appendChild(el("div",{style:{background:"#111",borderRadius:"6px",padding:"12px",border:"1px solid #2a2a3a"}},
-      el("div",{style:{fontSize:"11px",color:"#FF6B6B",marginBottom:"8px",fontWeight:"700"}},k[0]),
-      el("input",{ty:"number",min:"1",max:"99",val:k[2],ph:"–",
-        style:inp({width:"100%",fontSize:"22px",fontWeight:"900",color:"#FFE066",textAlign:"center"}),
-        onchange:function(e){var p={};p[key]=e.target.value;set(p);}})
-    ));
-  });
-  kc.appendChild(kg); w.appendChild(kc);
-
-  // Drivers
-  var dc=el("div",{cls:"card"});
-  dc.appendChild(el("div",{cls:"ctitle"},"FØRER-OPPSETT"));
-  S.drivers.forEach(function(dr,i){
-    var dv=el("div",{style:{marginBottom:"12px"}});
-    var nr2=el("div",{style:{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px"}});
-    nr2.appendChild(dot(COLORS[i]));
-    var ni=el("input",{val:dr.name,style:inp({flex:"1"})});
-    ni.addEventListener("change",function(e){
-      var dd=S.drivers.slice(); dd[i]=Object.assign({},dd[i],{name:e.target.value}); set({drivers:dd});
-    });
-    nr2.appendChild(ni); dv.appendChild(nr2);
-    var lr=el("div",{style:{display:"flex",alignItems:"center",gap:"8px",paddingLeft:"18px"}});
-    lr.appendChild(el("span",{style:{fontSize:"11px",color:"#9A9AA8",minWidth:"90px"}},"Rundetid (sek)"));
-    var li=el("input",{ty:"text",im:"decimal",ph:"36,1",
-      val:dr.str!=null?dr.str:fLap(dr.lap),
-      style:inp({width:"80px",color:"#FFE066",fontWeight:"700",textAlign:"center"})});
-    li.addEventListener("input",function(e){
-      var raw=e.target.value, p=pLap(raw);
-      var dd=S.drivers.slice(); dd[i]=Object.assign({},dd[i],{str:raw}); if(p) dd[i].lap=p; set({drivers:dd});
-    });
-    li.addEventListener("blur",function(e){
-      var p=pLap(e.target.value);
-      if(p){var dd=S.drivers.slice(); dd[i]=Object.assign({},dd[i],{str:fLap(p),lap:p}); set({drivers:dd});}
-    });
-    lr.appendChild(li);
-    lr.appendChild(el("span",{style:{fontSize:"11px",color:"#9A9AA8"}},(dr.lap/60).toFixed(3)+" min"));
-    dv.appendChild(lr); dc.appendChild(dv);
-  });
-  w.appendChild(dc);
-
-  // KV
-  var kvc=el("div",{cls:"card"});
-  kvc.appendChild(el("div",{cls:"ctitle"},"☁ SKY-SYNKRONISERING"));
-  kvc.appendChild(el("div",{style:{fontSize:"11px",color:"#9A9AA8",marginBottom:"10px"}},"Bruk samme sesjonsnøkkel på alle enheter."));
-  var kvr=el("div",{style:{display:"flex",gap:"8px",flexWrap:"wrap",alignItems:"center"}});
-  var kvi=el("input",{val:S.kk,ph:"sesjonsnøkkel",style:inp({width:"180px"})});
-  kvi.addEventListener("change",function(e){set({kk:e.target.value});});
-  kvr.appendChild(kvi);
-  kvr.appendChild(el("button",{style:{background:"#69DB7C",border:"none",color:"#000",padding:"10px 16px",borderRadius:"6px",fontWeight:"900",fontSize:"12px"},onclick:kvSave},"↑ LAGRE"));
-  kvr.appendChild(el("button",{style:{background:"#4DABF7",border:"none",color:"#000",padding:"10px 16px",borderRadius:"6px",fontWeight:"900",fontSize:"12px"},onclick:kvLoad},"↓ HENT"));
-  kvc.appendChild(kvr);
-  if(S.ks){
-    var sc2={saving:"#FFE066",loading:"#FFE066",saved:"#69DB7C",loaded:"#69DB7C",error:"#FF6B6B",notfound:"#FF6B6B"};
-    var st2={saving:"⏳ Lagrer...",loading:"⏳ Henter...",saved:"✓ Lagret!",loaded:"✓ Hentet!",error:"✗ Feil",notfound:"✗ Ikke funnet"};
-    kvc.appendChild(el("div",{style:{marginTop:"8px",fontSize:"11px",color:sc2[S.ks]||"#F4F4F8"}},st2[S.ks]||""));
+      clk=ps;
+      const ae=Math.min(pe,rSec);
+      res.push({type:'pit',start:ps,end:ae,num:pitsDone+pd,status:'future',rep:false});
+      clk=ae; if(clk>=rSec) break;
+    }
   }
-  w.appendChild(kvc);
-
-  // Build button
-  w.appendChild(el("button",{
-    style:{background:"linear-gradient(135deg,#FF6B6B,#cc2a21)",border:"none",color:"#fff",
-      padding:"16px",borderRadius:"8px",width:"100%",fontSize:"14px",
-      fontWeight:"900",letterSpacing:"3px",textTransform:"uppercase",
-      boxShadow:"0 4px 20px rgba(255,107,107,.4)"},
-    onclick:buildInit
-  },"⚡ BEREGN STRATEGI"));
-
-  return d;
+  // Extend the very last drive stint to exactly rSec so the race
+  // always ends at the configured duration (e.g. 120:00).
+  const lastDrive = [...res].reverse().find(s=>s.type==='drive');
+  if(lastDrive && lastDrive.end < rSec){
+    lastDrive.end = rSec;
+    lastDrive.signAt = lastDrive.end - SIGN_B;
+    lastDrive.bc = boostW.filter(([a])=>a>=lastDrive.start&&a<lastDrive.end).length;
+  }
+  return{stints:res, finalDT:acc};
 }
 
-function drawRace(){
-  var e=elapsed(), sc=S.sched, ci=S.done.length;
-  var cur=sc[ci], nxt=sc[ci+1], pd=S.done.length;
-  var cs=cur?(cur.actualStart!=null?cur.actualStart:cur.startTime):null;
-  var ti=S.started&&cs!=null?e-cs:0;
-  var pba=cur?cur.pitBoardAt:null;
-  var sp=S.started&&cur&&pba!=null&&e>=pba;
-  var pu=sp&&e>=pba+(S.drivers[cur.driver]?S.drivers[cur.driver].lap/60:1);
-  var bws=bw(), tp=sc.length-1;
-  var w=el("div",{style:{minHeight:"100vh",background:"#0a0a0f"}});
+// buildStrat: full plan med regelvalidering
+function buildStrat(t0, pitsDone, dT, snStart){
+  const tgtPits=Math.max(0,minP-pitsDone), nS=tgtPits+1;
+  // Reset kart history for a fresh plan (history is seeded from already-done stints below)
+  resetKartHistory();
+  // Seed history from stints already done in lStints (live mode)
+  if(lStints && lStints.length>0){
+    lStints.filter(s=>s.type==='drive'&&s.status==='done')
+           .forEach(s=>recordKart(s.di, s.sn));
+    const act=lStints.find(s=>s.type==='drive'&&s.status==='active');
+    if(act) recordKart(act.di, act.sn);
+  }
+  const seq=buildSeq(nS,dT,snStart);
+  return enforceRules(assignTimes(seq,t0,pitsDone,dT,snStart), t0, pitsDone, dT);
+}
 
-  if(sp) w.appendChild(el("div",{cls:"pit-ban",style:{background:pu?"#c0392b":"#a05400"}},
-    "🪧 PIT-SKILT UT! — "+cur.driverName.toUpperCase()+" — KJØR ÉN RUNDE TIL, SÅ PIT!"+(pu?" ⚠️ BUFFER-RUNDE!":"")));
+// enforceRules: splittar stints som bryter MAX_S eller MAX_TOT.
+// Legger inn ekstra pitstop kun dersom absolutt nødvendig.
+function enforceRules(plan, t0, pitsDone, dT){
+  let stints=plan.stints;
+  const acc=dT.slice();
+  let changed=false;
 
-  // Header
-  var hdr=el("div",{cls:"hdr"});
-  hdr.appendChild(el("span",null,"🏁"));
-  hdr.appendChild(el("span",{style:{fontSize:"15px",fontWeight:"900",letterSpacing:"3px"}},"GOKART STRATEGI"));
-  var clks=el("div",{style:{display:"flex",gap:"20px"}});
-  clks.appendChild(el("div",null,el("div",{style:{fontSize:"9px",color:"#9A9AA8",letterSpacing:"2px"}},"LØPSTID"),
-    el("div",{style:{fontSize:"22px",fontWeight:"900",color:e>110?"#FF6B6B":"#FFE066"}},fmt(e))));
-  clks.appendChild(el("div",null,el("div",{style:{fontSize:"9px",color:"#9A9AA8",letterSpacing:"2px"}},"GJENSTÅR"),
-    el("div",{style:{fontSize:"22px",fontWeight:"900",color:"#69DB7C"}},fmt(Math.max(0,120-e)))));
-  if(cur) clks.appendChild(el("div",null,el("div",{style:{fontSize:"9px",color:"#9A9AA8",letterSpacing:"2px"}},"TID I STINT"),
-    el("div",{style:{fontSize:"22px",fontWeight:"900",color:sp?"#FF6B6B":ti>=15?"#FFA94D":"#F4F4F8"}},fmt(ti))));
-  hdr.appendChild(clks);
-  var hb=el("div",{style:{marginLeft:"auto",display:"flex",gap:"8px",alignItems:"center",flexWrap:"wrap"}});
-  if(!S.started) hb.appendChild(el("button",{style:{background:"#69DB7C",border:"none",color:"#000",padding:"10px 16px",borderRadius:"6px",fontWeight:"900",fontSize:"12px"},onclick:startRace},"▶ START LØP"));
-  else hb.appendChild(el("span",{style:{fontSize:"10px",color:"#69DB7C",letterSpacing:"2px"}},"● LØPET PÅGÅR"));
-  hb.appendChild(el("span",{style:{fontSize:"11px",color:"#9A9AA8"}},"Pit: ",el("b",{style:{color:pd<7?"#FFA94D":"#69DB7C"}},String(pd)),"/7"));
-  hb.appendChild(el("button",{style:{background:"#111",border:"1px solid #2a2a3a",color:"#F4F4F8",padding:"10px 14px",borderRadius:"6px",fontSize:"12px"},onclick:function(){set({page:"setup"});}},"← OPPSETT"));
-  hdr.appendChild(hb); w.appendChild(hdr);
+  for(let i=0;i<stints.length;i++){
+    const s=stints[i];
+    if(s.type!=='drive') { if(s.type==='drive'){} continue; }
+    if(s.type!=='drive') continue;
+    const dur=s.end-s.start;
+    const alreadyBefore=acc[s.di]; // accumulation BEFORE this stint
+    const maxAllowed=Math.min(MAX_S, MAX_TOT-alreadyBefore);
 
-  // Tabs
-  var tabs=el("div",{style:{display:"flex",gap:"4px",borderBottom:"2px solid #1a1a2e",padding:"0 14px",overflowX:"auto"}});
-  [["live","🔴 LIVE"],["strategy","📋 STRATEGI"],["log","📝 LOGG"]].forEach(function(t){
-    tabs.appendChild(el("button",{cls:"tab"+(S.tab===t[0]?" on":""),onclick:function(){set({tab:t[0]});}},t[1]));
+    if(dur>maxAllowed && maxAllowed>=MIN_S && s.end<rSec){
+      // Truncate and rebuild the rest
+      s.end=s.start+maxAllowed;
+      s.signAt=sgAt(s.end);
+      s.bc=boostW.filter(([a])=>a>=s.start&&a<s.end).length;
+      const pD=stints.slice(0,i+1).filter(x=>x.type==='pit').length+pitsDone;
+      const newDT=dT.slice();
+      stints.slice(0,i+1).filter(x=>x.type==='drive').forEach(x=>{ newDT[x.di]+=(x.end-x.start); });
+      const{stints:tail}=buildStrat(s.end, pD, newDT, s.sn+1);
+      stints=[...stints.slice(0,i+1), ...tail];
+      changed=true;
+      break;
+    }
+    acc[s.di]+=dur;
+  }
+  if(changed) return enforceRules({stints}, t0, pitsDone, dT);
+  return{stints, finalDT:acc};
+}
+
+// replanKeepOrder: behold rekkefølge på fører, juster kun tider
+// replanKeepOrder: retimes EXISTING future stints without adding/removing any.
+// Core principle: all drivers should end up with equal total drive time.
+// Drivers with 2+ stints absorb imbalance by driving closer to MAX_S.
+// Drivers with 1 stint get their fair share. Never breaks MAX_S or MAX_TOT.
+function replanKeepOrder(fromLIdx, newStart){
+  // Collect future drive stints (indices into lStints) in order
+  const futDriveIdxs=[];
+  for(let i=fromLIdx;i<lStints.length;i++){
+    if(lStints[i].type==='drive'&&lStints[i].status==='future') futDriveIdxs.push(i);
+  }
+  if(!futDriveIdxs.length) return;
+
+  const nDrives=futDriveIdxs.length;
+  const futPits=lStints.slice(fromLIdx).filter(s=>s.type==='pit'&&s.status==='future').length;
+  const totalDriveAvail=Math.max(0, rSec - newStart - futPits*pitSec);
+
+  // Current accumulated drive time per driver (done + active)
+  const dtNow=getDT();
+
+  // How many more future stints does each driver have?
+  const futureStintCount=drivers.map(()=>0);
+  futDriveIdxs.forEach(idx=>{ futureStintCount[lStints[idx].di]++; });
+
+  // Target: all drivers finish with equal total drive time over the full race.
+  // Equal share = totalRaceTime / nDrivers (minus all pit time).
+  const totalRaceDrive=rSec - lStints.filter(s=>s.type==='pit').length*pitSec;
+  const equalShare=Math.round(totalRaceDrive/drivers.length);
+
+  // Calculate ideal allocation for each future stint.
+  // Strategy: driver's deficit = equalShare - dtNow[di]
+  // Spread that deficit evenly across their remaining future stints.
+  // Drivers with 2 stints get up to MAX_S each; drivers with 1 get their exact deficit.
+  const dtTemp=dtNow.slice();
+  const allocations=futDriveIdxs.map((idx,k)=>{
+    const di=lStints[idx].di;
+    const remainingStints=futureStintCount[di]; // stints left for this driver including this one
+    const deficit=Math.max(0, equalShare - dtTemp[di]);
+    // Give this stint: deficit / remainingStints, nudged toward MAX_S for multi-stint drivers
+    let ideal=Math.round(deficit / remainingStints);
+    // If driver has multiple future stints, prefer giving MORE now (closer to MAX_S)
+    // so their remaining stint can also be near equal share
+    if(remainingStints>1) ideal=Math.min(MAX_S, Math.max(ideal, Math.round(deficit*0.55)));
+    ideal=clampStint(di, ideal, dtTemp);
+    ideal=Math.max(MIN_S, Math.min(MAX_S, ideal));
+    dtTemp[di]+=ideal;
+    futureStintCount[di]--;
+    return ideal;
   });
-  w.appendChild(tabs);
 
-  var ct=el("div",{style:{maxWidth:"1300px",margin:"0 auto",padding:"14px"}});
-  w.appendChild(ct);
+  // Scale allocations to exactly fill totalDriveAvail (keep proportions)
+  const allocSum=allocations.reduce((a,b)=>a+b,0);
+  if(allocSum>0 && Math.abs(allocSum-totalDriveAvail)>5){
+    const scale=totalDriveAvail/allocSum;
+    const dtCheck=dtNow.slice();
+    for(let k=0;k<allocations.length;k++){
+      const di=lStints[futDriveIdxs[k]].di;
+      let scaled=Math.round(allocations[k]*scale);
+      scaled=Math.max(MIN_S, Math.min(MAX_S, scaled));
+      // Re-enforce MAX_TOT after scaling
+      scaled=Math.min(scaled, Math.max(0, MAX_TOT-dtCheck[di]));
+      scaled=Math.max(MIN_S, scaled);
+      allocations[k]=scaled;
+      dtCheck[di]+=scaled;
+    }
+    // Give any leftover seconds to the last stint (it goes to rSec anyway)
+    // so total adds up cleanly
+  }
 
-  if(S.tab==="live"){
-    var gr=el("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"14px"}});
+  // Apply allocations: walk lStints from fromLIdx, update start/end/pit times
+  let clk=newStart;
+  let allocIdx=0;
+  for(let i=fromLIdx;i<lStints.length;i++){
+    const s=lStints[i];
+    if(s.type==='pit'&&s.status==='future'){
+      s.start=clk; s.end=clk+pitSec; s.rep=true; clk+=pitSec;
+    } else if(s.type==='drive'&&s.status==='future'){
+      let dur=allocations[allocIdx++];
+      s.start=clk;
+      s.end=Math.min(clk+dur, rSec);
+      s.signAt=s.end-SIGN_B;
+      s.bc=boostW.filter(([a])=>a>=s.start&&a<s.end).length;
+      s.rep=true;
+      s.plannedRounds=Math.floor((s.end-s.start)/(s.lT||40)); // update planned rounds
+      clk=s.end;
+      if(clk>=rSec) break;
+    }
+  }
 
-    // Current
-    var cc=el("div",{style:{background:"#111",borderRadius:"8px",padding:"18px",border:"2px solid "+(cur?COLORS[cur.driver]:"#1a1a2e")}});
-    cc.appendChild(el("div",{style:{fontSize:"10px",letterSpacing:"3px",color:"#FF6B6B",marginBottom:"10px"}},"NÅVÆRENDE STINT #"+(ci+1)));
-    if(cur){
-      var ct2=el("div",{style:{display:"flex",alignItems:"center",gap:"10px",marginBottom:"14px"}});
-      ct2.appendChild(dot(COLORS[cur.driver],"14px"));
-      ct2.appendChild(el("span",{style:{fontSize:"18px",fontWeight:"900"}},cur.driverName));
-      if(cur.kartNum) ct2.appendChild(el("span",{style:{marginLeft:"auto",background:"#2a0a4e",border:"1px solid #DA77F2",color:"#DA77F2",borderRadius:"6px",padding:"3px 12px",fontSize:"14px",fontWeight:"900"}},"🏎 #"+cur.kartNum));
-      cc.appendChild(ct2);
-      cc.appendChild(row("Planlagt varighet",fmt(cur.duration),"#FFE066"));
-      cc.appendChild(row("🪧 Pit-skilt ved",fmt(cur.pitBoardAt),"#FFA94D"));
-      cc.appendChild(row("Planlagt pit inn",cur.pitEntry?fmt(cur.pitEntry):"Siste","#FF6B6B"));
-      cc.appendChild(row("Est. runder",cur.estimatedLaps,"#4DABF7"));
-      if(S.started){
-        var rb=el("div",{style:{marginTop:"12px",padding:"12px",background:"#0d0d14",borderRadius:"6px",border:"1px solid #2a2a3a"}});
-        rb.appendChild(el("div",{style:{fontSize:"10px",color:"#FFA94D",letterSpacing:"2px",marginBottom:"8px"}},"📝 REGISTRER NÅR NESTE FØRER ER UTE"));
-        var rr=el("div",{style:{display:"flex",gap:"8px",flexWrap:"wrap"}});
-        var mi=el("input",{val:S.mt,ph:fmt(e),style:inp({width:"80px"})});
-        mi.addEventListener("input",function(ev){set({mt:ev.target.value});});
-        rr.appendChild(mi);
-        rr.appendChild(el("button",{style:{background:"#69DB7C",border:"none",color:"#000",padding:"8px 12px",borderRadius:"4px",fontWeight:"900",fontSize:"12px"},onclick:function(){recPit(pTime(S.mt)||e);}},"✓ FØRER UTE"));
-        rr.appendChild(el("button",{style:{background:"#4DABF7",border:"none",color:"#000",padding:"8px 12px",borderRadius:"4px",fontWeight:"900",fontSize:"12px"},onclick:function(){recPit(e);}},"⏱ NÅ ("+fmt(e)+")"));
-        rb.appendChild(rr); cc.appendChild(rb);
+  // Always guarantee the very last drive stint (active or future) ends at rSec
+  const allNonDone=lStints.filter(s=>s.type==='drive'&&(s.status==='active'||s.status==='future'));
+  if(allNonDone.length>0){
+    const ld=allNonDone[allNonDone.length-1];
+    if(ld.end<rSec){
+      ld.end=rSec;
+      ld.signAt=ld.end-SIGN_B;
+      ld.bc=boostW.filter(([a])=>a>=ld.start&&a<ld.end).length;
+      ld.rep=true;
+    }
+  }
+}
+
+function rdUI(){
+  drivers.forEach((d,i)=>{
+    d.name=document.getElementById('d'+i+'n')?.value||'';
+    const p=pL(document.getElementById('d'+i+'l')?.value); if(!isNaN(p)) d.lt=p;
+  });
+}
+
+// ── Generer strategi ──────────────────────────────────────────
+function generate(){
+  rdUI(); vKart();
+  resetKartHistory(); // fresh plan – clear kart history
+  const bad=drivers.filter(d=>isNaN(d.lt)||d.lt<10);
+  if(bad.length){alert('Mangler rundetid: '+bad.map((d,i)=>d.name||('F\u00f8rer '+(i+1))).join(', '));return;}
+  rSec=+document.getElementById('raceDur').value*60;
+  minP=+document.getElementById('minPits').value;
+  pitSec=+document.getElementById('pitDur').value;
+  lastBI=+document.getElementById('bi').value||10;
+  lastBD=+document.getElementById('bd').value||60;
+  boostW=mkBW(lastBI,lastBD,rSec);
+  const{stints:s}=buildStrat(0,0,drivers.map(()=>0),1);
+  stints=s; stints.forEach(x=>{x.rep=false;x.status='future';});
+  rndrSetup(stints); document.getElementById('res').style.display='block';
+  ann('Strategi: '+stints.filter(x=>x.type==='pit').length+' pitstop.');
+}
+
+// ── Tabellrad ─────────────────────────────────────────────────
+function stintRow(s, sn, live){
+  const sgT=s.type==='drive'?sgAt(s.end):s.start-SIGN_B;
+  if(s.type==='pit'){
+    const cl=live?(s.status==='done'?'bd':s.status==='active'?'ba':'bp'):'bp';
+    const lb=live?(s.status==='done'?'Ferdig':s.status==='active'?'P\u00e5g\u00e5r':'Plan'):'Pit';
+    return '<tr class="pit-bg"><td><span class="badge '+cl+'">P'+(s.num||'?')+'</span></td>'
+      +'<td></td><td style="color:#C0C0C0;font-size:11px;font-style:italic">Pit inn '+fm(s.start)+' → ut '+fm(s.end)+'</td>'
+      +'<td>'+fm(s.start)+'</td><td>'+fm(s.end)+'</td><td>'+Math.round(pitSec/60)+'m</td>'
+      +'<td></td>'
+      +'<td class="sign-td">\u26d1 '+fm(sgT)+'</td>'
+      +'<td><span class="badge '+cl+'">'+lb+'</span></td><td></td><td></td></tr>';
+  }
+  const dur=s.end-s.start;
+  // Use stored plannedRounds (static from strategy) when available;
+  // only recalculate if not yet set (e.g. setup tab preview)
+  const rn = (live && s.plannedRounds !== undefined)
+    ? s.plannedRounds
+    : Math.floor(dur/(s.lT||40));
+  const cl=live?(s.status==='done'?'bd':s.status==='active'?'ba':'bf'):'bf';
+  const lb=live?(s.status==='done'?'Ferdig':s.status==='active'?'Kj\u00f8rer':'Plan'):'Plan';
+  const ri=s.rep?'<span class="badge br" style="margin-left:3px">R</span>':'';
+  const bt=s.bc?('<span class="badge bbo" style="margin-left:3px">\u26a1'+s.bc+'</span>'):'';
+  // Actual laps cell: editable input for done stints, empty for future/active
+  let actualCell='<td></td><td></td>';
+  if(live){
+    const actVal = (typeof actualLaps !== 'undefined' && actualLaps[s.sn] !== undefined)
+      ? actualLaps[s.sn] : '';
+    if(s.status==='done'){
+      // Show input for completed stints
+      const dev = actVal!=='' ? (actVal - rn) : '';
+      const devColor = dev===''?'#555':(dev>0?'#39D353':(dev<0?'#E8002D':'#C0C0C0'));
+      const devStr  = dev===''?'–':(dev>0?'+'+dev:String(dev));
+      actualCell = '<td><input type="number" value="'+actVal+'" min="0" max="999"'
+        +' style="width:58px;height:26px;padding:0 4px;font-size:11px;font-variant-numeric:tabular-nums;'
+        +'border:1px solid #2A2A2A;border-radius:4px;background:#1E1E1E;color:#fff;text-align:center"'
+        +' onchange="setActualLaps('+s.sn+',this.value)"'
+        +' onclick="event.stopPropagation()"'
+        +' aria-label="Faktisk antall runder for stint '+s.sn+'"></td>'
+        +'<td style="color:'+devColor+';font-weight:700;font-size:12px;text-align:center">'+devStr+'</td>';
+    } else {
+      // Active or future: show planned only, no input yet
+      actualCell = '<td style="color:#555;font-size:11px;text-align:center">–</td>'
+                 +'<td style="color:#555;font-size:11px;text-align:center">–</td>';
+    }
+  }
+  return '<tr style="'+(live&&s.status==='done'?'opacity:.4':'')+'"><td style="font-size:10px;color:#555;font-weight:700">'+sn+'</td>'
+    +'<td>'+kB2(s.sn)+'</td>'
+    +'<td><span style="display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap"><span style="width:8px;height:8px;border-radius:50%;background:'+s.col+';display:inline-block;flex-shrink:0"></span><span style="color:#fff">'+s.name+'</span>'+ri+bt+'</span></td>'
+    +'<td>'+fm(s.start)+'</td><td>'+fm(s.end)+'</td><td>'+Math.round(dur/60)+'m</td>'
+    +'<td style="color:#fff">~'+rn+'<span style="font-size:10px;color:#555"> ('+fmL(s.lT||40)+'s)</span></td>'
+    +'<td class="sign-td">\u26d1 '+fm(sgT)+'</td>'
+    +'<td><span class="badge '+cl+'">'+lb+'</span></td>'
+    +actualCell+'</tr>';
+}
+
+// ── Tidslinje ─────────────────────────────────────────────────
+function rndrTL(bId,rId,boId,arr,rS){
+  const r=document.getElementById(rId);
+  if(r){const T=12;r.innerHTML=Array.from({length:T+1},(_,i)=>'<span>'+Math.round(i*rS/T/60)+"'</span>").join('');}
+  const bEl=document.getElementById(boId);
+  if(bEl){bEl.innerHTML=boostW.length?'<div class="bb">'+boostW.map(([a,b])=>'<div class="bs" style="left:'+(a/rS*100).toFixed(2)+'%;width:'+((b-a)/rS*100).toFixed(2)+'%"></div>').join('')+'</div><p style="font-size:10px;color:#555;margin-bottom:5px"><span style="display:inline-block;width:8px;height:5px;background:#C9A84C;border-radius:2px;margin-right:3px;vertical-align:middle"></span>Gull = boost</p>':'';}
+  const bar=document.getElementById(bId); if(!bar) return;
+  const nl=bar.querySelector('.nl'); bar.innerHTML=''; if(nl) bar.appendChild(nl);
+  arr.forEach(s=>{
+    const l=(s.start/rS*100).toFixed(2), w=Math.max(0.4,(s.end-s.start)/rS*100).toFixed(2);
+    const seg=document.createElement('div'); seg.className='tls'; seg.style.cssText='left:'+l+'%;width:'+w+'%;';
+    if(s.type==='pit'){seg.style.background='#1A0005';seg.style.borderLeft='2px solid #E8002D';seg.innerHTML='<span style="font-size:9px;color:#E8002D;font-weight:700">P</span>';}
+    else{seg.style.cssText+='background:'+s.col+'18;border-left:'+(s.rep?'2px dashed '+s.col:'2px solid '+s.col)+';opacity:'+(s.status==='done'?'0.3':'1');seg.innerHTML='<span style="font-size:10px;color:'+s.col+';font-weight:700">'+(s.name||'').split(' ')[0].substring(0,5)+'</span>';}
+    seg.title=s.type==='pit'?('P'+s.num+': '+fm(s.start)+'\u2013'+fm(s.end)):(s.name+': '+fm(s.start)+'\u2013'+fm(s.end));
+    bar.appendChild(seg);
+  });
+}
+
+function rndrSetup(arr){
+  document.getElementById('mBadge').textContent=mlbl(); document.getElementById('bSum').textContent=bsum();
+  rndrTL('tlBar','tlR','bBarW',arr,rSec);
+  const pits=arr.filter(s=>s.type==='pit').length;
+  const rnd=arr.filter(s=>s.type==='drive').reduce((sm,s)=>sm+Math.floor((s.end-s.start)/s.lT),0);
+  document.getElementById('statsG').innerHTML=[{v:pits,l:'Pitstop'},{v:rnd,l:'Est. runder'},{v:Math.round(rSec/60)+' min',l:'L\u00f8pstid'},{v:drivers.length,l:'F\u00f8rere'}]
+    .map(x=>'<div class="sc"><div class="sv">'+x.v+'</div><div class="sl">'+x.l+'</div></div>').join('');
+  let sn=0; document.getElementById('stintTbl').innerHTML=arr.map(s=>stintRow(s,s.type==='drive'?++sn:null,false)).join('');
+}
+
+// ── Live-tilstand ─────────────────────────────────────────────
+function getDT(){
+  const dt=drivers.map(()=>0);
+  lStints.filter(s=>s.type==='drive'&&s.status==='done').forEach(s=>dt[s.di]+=(s.end-s.start));
+  const act=lStints.find(s=>s.type==='drive'&&s.status==='active');
+  if(act) dt[act.di]+=(lElap-(act.aStart||act.start));
+  return dt;
+}
+
+// Neste planlagte drive-stint ETTER aktivt stint
+function nextPlanned(){
+  const actIdx=lStints.findIndex(s=>s.type==='drive'&&s.status==='active');
+  if(actIdx>=0){
+    for(let i=actIdx+1;i<lStints.length;i++){
+      if(lStints[i].type==='drive'&&lStints[i].status==='future') return lStints[i];
+    }
+    return null;
+  }
+  return lStints.find(s=>s.type==='drive'&&s.status==='future')||null;
+}
+
+// ── Dropdown (bevarer brukerens valg mellom ticks) ────────────
+// updSel: removed (Bytt UI no longer in DOM)
+let _lastNxtDi=-1;
+function updSel(force){ _lastNxtDi=-1; }
+
+// ── Bytt, og juster plan ──────────────────────────────────────
+function doBytt(){
+  const di=+null.value;
+  const nxt=nextPlanned(); if(!nxt) return;
+  const d=drivers[di];
+  const act=lStints.find(s=>s.type==='drive'&&s.status==='active');
+  if(act&&act.di===di){alert((d.name||('F\u00f8rer '+(di+1)))+' kj\u00f8rer allerede. Kan ikke sette samme f\u00f8rer to ganger p\u00e5 rad.');return;}
+  const nxtIdx=lStints.indexOf(nxt);
+  let prevDrive=null;
+  for(let i=nxtIdx-1;i>=0;i--){if(lStints[i].type==='drive'){prevDrive=lStints[i];break;}}
+  if(prevDrive&&prevDrive.di===di){alert((d.name||('F\u00f8rer '+(di+1)))+' kj\u00f8rte nettopp forrige stint. Kan ikke sette samme f\u00f8rer to ganger p\u00e5 rad.');return;}
+  if(di===nxt.di){ann('F\u00f8rer er allerede planlagt.');return;}
+  const dt=getDT();
+  if(dt[di]>=MAX_TOT){alert((d.name||('F\u00f8rer '+(di+1)))+' har allerede n\u00e5dd maks kj\u00f8retid (50 min).');return;}
+  nxt.di=di; nxt.name=d.name||('F\u00f8rer '+(di+1)); nxt.col=C[di%C.length]; nxt.lT=d.lt; nxt.rep=true;
+  nxt.signAt=sgAt(nxt.end); nxt.bc=boostW.filter(([a])=>a>=nxt.start&&a<nxt.end).length;
+  const futIdx=lStints.findIndex((s,i)=>i>nxtIdx&&s.status==='future');
+  if(futIdx>=0) replanKeepOrder(futIdx,nxt.end);
+  const msg=fm(lElap)+' \u2013 Stint '+nxt.sn+': byttet til '+(d.name||('F\u00f8rer '+(di+1)));
+  addLog(msg); ann(msg); updSel(true); rndrAll();
+}
+
+// ── Pit na ────────────────────────────────────────────────────
+// Trykkes nar neste forer kjorer ut fra pit.
+// Steg: 1) aktivt stint done, 2) neste pit done, 3) neste drive aktiv, 4) retune.
+// Beregning respekterer MAX_S, MAX_TOT, boost-vinduer, pitskilt.
+function pitNaa(){
+  const t=lElap;
+  // Steg 1: avslutt aktivt stint
+  const actIdx=lStints.findIndex(s=>s.type==='drive'&&s.status==='active');
+  if(actIdx<0){ann('Ingen aktiv f\u00f8rer akkurat n\u00e5.');return;}
+  lStints[actIdx].status='done';
+  lStints[actIdx].end=t;
+
+  // Steg 2: merk neste pit som ferdig (den rett etter aktivt stint)
+  let pitIdx=-1;
+  for(let i=actIdx+1;i<lStints.length;i++){
+    if(lStints[i].type==='pit'){
+      if(lStints[i].status!=='done'){
+        pitIdx=i;
+        lStints[i].status='done';
+        lStints[i].start=t;
+        lStints[i].end=t+pitSec;
       }
-    } else {
-      cc.appendChild(el("div",{style:{color:"#9A9AA8",textAlign:"center",padding:"20px"}},"Løpet er fullført! 🏁"));
+      break;
     }
-    gr.appendChild(cc);
-
-    // Next
-    var nc=el("div",{style:{background:"#111",borderRadius:"8px",padding:"18px",border:"1px solid "+(nxt?COLORS[nxt.driver]+"55":"#1a1a2e")}});
-    nc.appendChild(el("div",{style:{fontSize:"10px",letterSpacing:"3px",color:"#9A9AA8",marginBottom:"10px"}},"NESTE STINT #"+(ci+2)));
-    if(nxt){
-      var nt=el("div",{style:{display:"flex",alignItems:"center",gap:"10px",marginBottom:"14px"}});
-      nt.appendChild(dot(COLORS[nxt.driver],"12px"));
-      nt.appendChild(el("span",{style:{fontSize:"15px",fontWeight:"700",color:"#B8B8C4"}},nxt.driverName));
-      if(nxt.kartNum) nt.appendChild(el("span",{style:{marginLeft:"auto",background:"#0a2a1a",border:"1px solid #69DB7C",color:"#69DB7C",borderRadius:"12px",padding:"3px 10px",fontSize:"13px",fontWeight:"900"}},"🏎 #"+nxt.kartNum));
-      nc.appendChild(nt);
-      nc.appendChild(row("Planlagt start",fmt(nxt.startTime)));
-      nc.appendChild(row("Planlagt varighet",fmt(nxt.duration),"#FFE066"));
-      nc.appendChild(row("🪧 Pit-skilt ved",fmt(nxt.pitBoardAt),"#FFA94D"));
-      nc.appendChild(row("Est. runder",nxt.estimatedLaps,"#4DABF7"));
-    } else {
-      nc.appendChild(el("div",{style:{color:"#9A9AA8",fontSize:"13px"}},"Siste stint pågår"));
-    }
-    gr.appendChild(nc);
-
-    // Boost
-    if(S.mode==="boost"&&S.started){
-      var br=el("div",{style:{gridColumn:"1/-1",background:"#111",borderRadius:"8px",padding:"12px",border:"1px solid #1a1a2e",display:"flex",gap:"10px",flexWrap:"wrap",alignItems:"center"}});
-      br.appendChild(el("span",{style:{fontSize:"10px",letterSpacing:"3px",color:"#FFE066"}},"⚡ NESTE BOOST"));
-      bws.filter(function(b){return b.e>e;}).slice(0,6).forEach(function(b){
-        var act=b.s<=e&&b.e>e;
-        var bc2=el("div",{style:{background:act?"#3a2a00":"#0a0a0f",border:"1px solid "+(act?"#FFE066":"#1a1a2e"),borderRadius:"6px",padding:"6px 12px",textAlign:"center",minWidth:"60px"}});
-        if(act) bc2.appendChild(el("div",{style:{fontSize:"12px",fontWeight:"900",color:"#FFE066"}},"🔥 AKTIV!"));
-        else{bc2.appendChild(el("div",{style:{fontSize:"12px",fontWeight:"900",color:"#FFE066"}},fmt(b.s)));bc2.appendChild(el("div",{style:{fontSize:"10px",color:"#9A9AA8"}},"om "+fmt(b.s-e)));}
-        br.appendChild(bc2);
-      });
-      gr.appendChild(br);
-    }
-
-    // KV row
-    var kvr2=el("div",{style:{gridColumn:"1/-1",display:"flex",gap:"8px",alignItems:"center",flexWrap:"wrap"}});
-    kvr2.appendChild(el("span",{style:{fontSize:"11px",color:"#9A9AA8"}},"☁ Sky:"));
-    var kvi2=el("input",{val:S.kk,style:inp({width:"160px",fontSize:"11px"})});
-    kvi2.addEventListener("change",function(e){set({kk:e.target.value});});
-    kvr2.appendChild(kvi2);
-    kvr2.appendChild(el("button",{style:{background:"#69DB7C",border:"none",color:"#000",padding:"8px 12px",borderRadius:"4px",fontWeight:"900",fontSize:"11px"},onclick:kvSave},"↑ LAGRE"));
-    kvr2.appendChild(el("button",{style:{background:"#4DABF7",border:"none",color:"#000",padding:"8px 12px",borderRadius:"4px",fontWeight:"900",fontSize:"11px"},onclick:kvLoad},"↓ HENT"));
-    if(S.ks){
-      var ksc={saved:"#69DB7C",loaded:"#69DB7C",error:"#FF6B6B",saving:"#FFE066",loading:"#FFE066",notfound:"#FF6B6B"};
-      var kst={saved:"✓ Lagret",loaded:"✓ Hentet",error:"✗ Feil",saving:"⏳...",loading:"⏳...",notfound:"✗ Ikke funnet"};
-      kvr2.appendChild(el("span",{style:{fontSize:"11px",color:ksc[S.ks]||"#F4F4F8"}},kst[S.ks]||""));
-    }
-    gr.appendChild(kvr2);
-    ct.appendChild(gr);
+    if(lStints[i].type==='drive') break;
   }
 
-  if(S.tab==="strategy"){
-    var tw=el("div",{cls:"tbl",style:{background:"#111",borderRadius:"8px",border:"1px solid #1a1a2e"}});
-    var tbl=el("table",null);
-    tbl.appendChild(el("thead",null,el("tr",null,
-      ["#","KART","FØRER","START","VARIGHET","🪧 SKILT","PIT INN","PIT UT","RND","STATUS"].map(function(h){
-        return el("th",null,h);
-      })
-    )));
-    var tb=el("tbody",null);
-    sc.forEach(function(s,i){
-      var isc=i===ci&&S.started, isd=s.isCompleted;
-      var tr=el("tr",{style:{background:isc?"#2a1a00":isd?"#0a200a":i%2===0?"#0d0d14":"#111",opacity:isd?"0.7":"1"}});
-      tr.appendChild(el("td",{style:{fontWeight:"700",color:isc?"#FFE066":"#FF6B6B"}},(isc?"▶ ":isd?"✓ ":"")+s.stint));
-      if(s.kartNum){
-        var iodd=s.stint%2===1;
-        tr.appendChild(el("td",null,el("span",{style:{background:iodd?"#2a0a4e":"#0a2a1a",border:"1px solid "+(iodd?"#DA77F2":"#69DB7C"),color:iodd?"#DA77F2":"#69DB7C",borderRadius:"4px",padding:"1px 6px",fontSize:"10px",fontWeight:"900"}},(iodd?"A":"B")+"·"+s.kartNum)));
-      } else tr.appendChild(el("td",{style:{color:"#555"}},"—"));
-      var dc=el("td",null); var ds=el("span",{style:{display:"inline-flex",alignItems:"center",gap:"5px"}}); ds.appendChild(dot(COLORS[s.driver],"7px")); ds.appendChild(document.createTextNode(s.driverName)); dc.appendChild(ds); tr.appendChild(dc);
-      tr.appendChild(el("td",{style:{color:"#B8B8C4"}},fmt(s.startTime)));
-      tr.appendChild(el("td",{style:{color:"#FFE066",fontWeight:"700"}},fmt(s.duration)));
-      tr.appendChild(el("td",{style:{color:"#FFA94D"}},s.pitBoardAt?fmt(s.pitBoardAt):"—"));
-      tr.appendChild(el("td",{style:{color:s.pitEntry?"#FF6B6B":"#555"}},s.pitEntry?fmt(s.pitEntry):"—"));
-      tr.appendChild(el("td",{style:{color:s.pitExit?"#69DB7C":"#555"}},s.pitExit?fmt(s.pitExit):"—"));
-      tr.appendChild(el("td",{style:{color:"#4DABF7",fontWeight:"700"}},String(s.estimatedLaps)));
-      var st=isd?el("span",{style:{color:"#69DB7C"}},"✓ FERDIG"):isc?el("span",{style:{color:"#FFE066"}},"▶ PÅGÅR"):s.inBoostConflict?el("span",{style:{color:"#FF6B6B"}},"⚡ BOOST"):el("span",{style:{color:"#7A7A88"}},"VENTER");
-      tr.appendChild(el("td",null,st)); tb.appendChild(tr);
-    });
-    tbl.appendChild(tb); tw.appendChild(tbl);
-    tw.appendChild(el("div",{style:{padding:"8px 12px",fontSize:"11px",color:"#9A9AA8"}},
-      "Pitstop: ",el("b",{style:{color:tp<7?"#FF6B6B":"#FFA94D"}},String(tp)),tp<7?" ⚠️ Under minimum!":"",
-      " · Gjennomført: ",el("b",{style:{color:"#69DB7C"}},String(pd))));
-    ct.appendChild(tw);
+  // Steg 3: finn neste drive-stint
+  const searchFrom=pitIdx>=0?pitIdx:actIdx;
+  let nextDriveIdx=-1;
+  for(let i=searchFrom+1;i<lStints.length;i++){
+    if(lStints[i].type==='drive'&&lStints[i].status==='future'){nextDriveIdx=i;break;}
   }
 
-  if(S.tab==="log"){
-    if(S.log.length===0){
-      ct.appendChild(el("div",{style:{background:"#111",borderRadius:"8px",padding:"32px",textAlign:"center",color:"#555",border:"1px solid #1a1a2e"}},"📝 Ingen justeringer ennå"));
-    } else {
-      S.log.forEach(function(lg){
-        var ea=lg.delta!=null&&lg.delta<-0.5, la=lg.delta!=null&&lg.delta>0.5;
-        var lc=el("div",{style:{background:"#111",borderRadius:"8px",padding:"14px",marginBottom:"10px",
-          border:"1px solid "+(ea?"#69DB7C":la?"#FFA94D":"#1a1a2e"),
-          borderLeft:"4px solid "+(ea?"#69DB7C":la?"#FFA94D":"#555")}});
-        var lh=el("div",{style:{display:"flex",gap:"12px",marginBottom:"8px",fontSize:"11px"}});
-        lh.appendChild(el("span",{style:{color:"#FF6B6B",fontWeight:"900"}},"STINT #"+lg.stint));
-        lh.appendChild(el("span",{style:{fontWeight:"700"}},lg.driver));
-        lh.appendChild(el("span",{style:{marginLeft:"auto",color:"#9A9AA8"}},"@ "+lg.ts));
-        lc.appendChild(lh);
-        var lg2=el("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px"}});
-        [["PLANLAGT",fmt(lg.planned),"#B8B8C4"],["FAKTISK",fmt(lg.actual),"#F4F4F8"],
-          ["AVVIK",lg.delta!=null?(ea?"-":la?"+":"")+fmt(Math.abs(lg.delta)):"—",ea?"#69DB7C":la?"#FFA94D":"#F4F4F8"]
-        ].forEach(function(x){
-          lg2.appendChild(el("div",{style:{background:"#0d0d14",borderRadius:"6px",padding:"8px",textAlign:"center"}},
-            el("div",{style:{fontSize:"9px",color:"#9A9AA8",letterSpacing:"2px",marginBottom:"4px"}},x[0]),
-            el("div",{style:{fontSize:"14px",fontWeight:"700",color:x[2]}},x[1])));
-        });
-        lc.appendChild(lg2); ct.appendChild(lc);
-      });
+  if(nextDriveIdx<0){
+    // No more planned stints after this pit – race ends with current active stint
+    // Just log and return; the active stint will run to rSec
+    addLog(fm(t)+' \u2013 Pit registrert. Siste f\u00f8rer fullforer l\u00f8pet.');
+    ann('Pit kl. '+fm(t)+'.');
+    updSel(true); rndrAll(); return;
+  }
+
+  // Steg 4: aktiver neste drive-stint fra na
+  const nds=lStints[nextDriveIdx];
+  nds.status='active'; nds.aStart=t; nds.start=t; nds.rep=true;
+
+  // Beregn stintlengde: respekter MAX_S og MAX_TOT
+  const dt=getDT();
+  const remDrives=lStints.slice(nextDriveIdx+1).filter(s=>s.type==='drive'&&s.status==='future');
+  const remPits=lStints.slice(nextDriveIdx+1).filter(s=>s.type==='pit'&&s.status==='future').length;
+  const totalLeft=1+remDrives.length;
+  const driveTimeLeft=Math.max(0,rSec-t-remPits*pitSec);
+  let idealSl=Math.round(driveTimeLeft/totalLeft);
+  idealSl=clampStint(nds.di, idealSl, dt);
+  idealSl=Math.min(MAX_S, Math.max(MIN_S, idealSl));
+  nds.end=Math.min(t+idealSl, rSec);
+  nds.signAt=sgAt(nds.end);
+  nds.bc=boostW.filter(([a])=>a>=t&&a<nds.end).length;
+  nds.plannedRounds=Math.floor((nds.end-t)/(nds.lT||40));
+
+  // Steg 5: retune alle fremtidige stints (behold rekkefølge, juster kun tider)
+  // Find the first future stint after the newly activated drive stint
+  const afterIdx=lStints.findIndex((s,i)=>i>nextDriveIdx&&s.status==='future');
+  if(afterIdx>=0){
+    // There are more stints after this one – retime them all
+    replanKeepOrder(afterIdx, nds.end);
+  } else {
+    // This is the last planned drive stint – stretch to rSec if possible
+    const maxEnd=Math.min(t+MAX_S, rSec);
+    nds.end=maxEnd;
+    nds.signAt=nds.end-SIGN_B;
+    nds.bc=boostW.filter(([a])=>a>=t&&a<nds.end).length;
+  }
+  // Final guarantee: last drive stint ends at rSec (covers active + future)
+  const allNonDone=lStints.filter(s=>s.type==='drive'&&(s.status==='active'||s.status==='future'));
+  if(allNonDone.length>0){
+    const veryLast=allNonDone[allNonDone.length-1];
+    if(veryLast.end<rSec){
+      veryLast.end=rSec;
+      veryLast.signAt=veryLast.end-SIGN_B;
+      veryLast.bc=boostW.filter(([a])=>a>=veryLast.start&&a<veryLast.end).length;
     }
   }
 
-  return w;
+  const msg=fm(t)+' \u2013 Pit n\u00e5: '+nds.name+' ut p\u00e5 banen (stint '+nds.sn+')';
+  addLog(msg); ann(msg); updSel(true); rndrAll();
+  shAlert('Pit registrert kl. '+fm(t)+'. '+nds.name+' kj\u00f8rer stint '+nds.sn+'.');
 }
 
-draw();
+// ── Klokke ────────────────────────────────────────────────────
+function goLive(){
+  lStints=stints.map(s=>({...s,status:'future',aStart:null}));
+  const firstDrive=lStints.find(s=>s.type==='drive');
+  if(firstDrive){firstDrive.status='active';firstDrive.aStart=0;}
+  lRun=false; lElap=0; elog=[]; clearInterval(lTimer); lTimer=null;
+  actualLaps={};
+  lStartWallTime=null; lElapsedAtStart=0; clearState(); _lastNxtDi=-1;
+  document.getElementById('lMBadge').textContent=mlbl();
+  document.getElementById('lBSum').textContent=bsum();
+  document.getElementById('lContent').style.display='block';
+  document.getElementById('lEmpty').style.display='none';
+  updSel(true); rndrAll();
+  document.querySelectorAll('.tab').forEach(t=>{t.classList.toggle('on',t.dataset.t==='live');t.setAttribute('aria-selected',t.dataset.t==='live'?'true':'false');});
+  document.querySelectorAll('.tc').forEach(t=>t.classList.toggle('on',t.id==='tc-live'));
+}
+
+function togClock(){
+  if(!lRun){
+    lRun=true; lStartWallTime=Date.now(); lElapsedAtStart=lElap; saveState();
+    const b=document.getElementById('ssBtn');
+    b.querySelector('#ssBtnTxt').textContent=' Pause'; b.style.background='#1A1000'; b.style.color='#C9A84C'; b.style.borderColor='#C9A84C';
+    lTimer=setInterval(()=>{lElap++;tick();saveState();},1000);
+  }else{
+    lRun=false; clearInterval(lTimer); lTimer=null; clearState();
+    const b=document.getElementById('ssBtn');
+    b.querySelector('#ssBtnTxt').textContent=' Fortsett'; b.style.background='#E8002D'; b.style.color='#fff'; b.style.borderColor='#E8002D';
+  }
+}
+
+function rstClock(){
+  lRun=false; clearInterval(lTimer); lTimer=null; lElap=0;
+  lStartWallTime=null; lElapsedAtStart=0; clearState();
+  const b=document.getElementById('ssBtn');
+  b.querySelector('#ssBtnTxt').textContent=' Start klokke'; b.style.background='#E8002D'; b.style.color='#fff'; b.style.borderColor='#E8002D';
+  document.getElementById('lClock').textContent='0:00';
+  document.getElementById('lRem').textContent=fm(rSec);
+  document.getElementById('nowL').style.left='0';
+}
+
+function tick(){
+  document.getElementById('lClock').textContent=fm(lElap);
+  document.getElementById('lRem').textContent=fm(Math.max(0,rSec-lElap));
+  document.getElementById('nowL').style.left=(lElap/rSec*100).toFixed(2)+'%';
+  chkSign(); rndrNextAct(); updSel(false);
+}
+
+function chkSign(){
+  const act=lStints.find(s=>s.type==='drive'&&s.status==='active');
+  if(!act){document.getElementById('psCard').style.display='none';return;}
+  const sgT=sgAt(act.end);
+  if(lElap>=sgT&&lElap<act.end+act.lT*2){
+    const dur=lElap-(act.aStart||act.start);
+    document.getElementById('psCard').style.display='flex';
+    document.getElementById('psTxt').textContent='VIS PIT-SKILT TIL '+((act.name||'').toUpperCase())+'! Kart '+(kNr(act.sn)||'?')+'.';
+    document.getElementById('psSub').textContent=Math.round(dur/60)+' min sittet. Pit inn: '+fm(act.end)+' (om '+Math.round(Math.max(0,act.end-lElap))+' sek). Fullf\u00f8r runde + 1 til.';
+    if(lElap===Math.round(sgT)) ann(document.getElementById('psTxt').textContent,true);
+  }else document.getElementById('psCard').style.display='none';
+}
+
+function rndrNextAct(){
+  const rem=rSec-lElap;
+  const np=lStints.find(s=>s.type==='pit'&&s.status==='future');
+  const act=lStints.find(s=>s.type==='drive'&&s.status==='active');
+  const actIdx=lStints.findIndex(s=>s.type==='drive'&&s.status==='active');
+  let nd=null;
+  if(actIdx>=0){for(let i=actIdx+1;i<lStints.length;i++){if(lStints[i].type==='drive'&&lStints[i].status==='future'){nd=lStints[i];break;}}}
+  else{nd=lStints.find(s=>s.type==='drive'&&s.status==='future')||null;}
+  let h='<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  if(act){
+    const sit=lElap-(act.aStart||act.start),sgT=sgAt(act.end),sinIn=Math.max(0,sgT-lElap),kn=kNr(act.sn),nb=nextB(lElap);
+    h+='<div style="flex:1;min-width:120px;background:#111;border-radius:8px;padding:8px 10px;border-left:3px solid '+act.col+'">'
+      +'<div style="font-size:10px;color:#555;margin-bottom:2px;font-weight:700">KJ\u00d8RER N\u00c5</div>'
+      +'<div style="font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:5px">'+act.name+(kn?('<span class="kb '+(act.sn%2===1?'ka':'kbg')+'" style="width:22px;height:22px;font-size:10px;border-radius:4px">'+kn+'</span>'):'')+'</div>'
+      +'<div style="font-size:11px;color:#555">'+Math.round(sit/60)+' min \u00b7 '+fmL(act.lT)+'s/runde</div>'
+      +(sinIn>0?('<div style="font-size:11px;color:#C9A84C;margin-top:3px;font-weight:700">\u26d1 Pit-skilt om '+fm(sinIn)+' (kl. '+fm(sgT)+')</div>'):'<div style="font-size:12px;color:#E8002D;font-weight:700;margin-top:3px">VIS PIT-SKILT N\u00c5!</div>')
+      +(nb<Infinity&&nb<act.end?('<div style="font-size:10px;color:#C9A84C;margin-top:2px">\u26a1 Boost om '+fm(nb-lElap)+'</div>'):'')
+      +'</div>';
+  }
+  if(np){
+    const pi=Math.max(0,np.start-lElap), nkn=nd?kNr(nd.sn):null;
+    h+='<div style="flex:1;min-width:120px;background:#111;border-radius:8px;padding:8px 10px;border-left:3px solid #E8002D">'
+      +'<div style="font-size:10px;color:#555;margin-bottom:2px;font-weight:700">NESTE PITSTOP</div>'
+      +'<div style="font-size:13px;font-weight:700;color:#fff">Pit inn: '+fm(np.start)+'</div>'
+      +'<div style="font-size:11px;color:#C9A84C;font-weight:700">\u26d1 Pit-skilt: '+fm(sgAt(np.start))+'</div>'
+      +'<div style="font-size:11px;color:#555">Om '+fm(pi)+(nkn?' \u00b7 Neste kart: <strong style="color:#fff">'+nkn+'</strong>':'')+'</div>'
+      +'</div>';
+  }
+  if(nd){
+    const nkn=kNr(nd.sn);
+    h+='<div style="flex:1;min-width:120px;background:#111;border-radius:8px;padding:8px 10px;border-left:3px solid '+nd.col+'">'
+      +'<div style="font-size:10px;color:#555;margin-bottom:2px;font-weight:700">NESTE F\u00d8RER</div>'
+      +'<div style="font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:5px">'+nd.name+(nkn?('<span class="kb '+(nd.sn%2===1?'ka':'kbg')+'" style="width:22px;height:22px;font-size:10px;border-radius:4px">'+nkn+'</span>'):'')+'</div>'
+      +'<div style="font-size:11px;color:#555">Plan ut: '+fm(nd.start)+'</div>'
+      +'</div>';
+  }
+  h+='<div style="flex:1;min-width:120px;background:#111;border-radius:8px;padding:8px 10px">'
+    +'<div style="font-size:10px;color:#555;margin-bottom:2px;font-weight:700">GJENSTÅENDE</div>'
+    +'<div style="font-size:13px;font-weight:700;color:#fff">'+fm(rem)+'</div>'
+    +'<div style="font-size:11px;color:#555">'+lStints.filter(s=>s.type==='pit'&&s.status==='future').length+' pitstop igjen</div>'
+    +'</div>';
+  h+='</div>'; document.getElementById('nextAct').innerHTML=h;
+}
+
+function setActualLaps(sn, val){
+  const n = parseInt(val);
+  if(!isNaN(n) && n >= 0){
+    actualLaps[sn] = n;
+  } else {
+    delete actualLaps[sn];
+  }
+  rndrLive(); // re-render to update deviation column
+}
+
+function rndrLive(){
+  let sn=0; const hasR=lStints.some(s=>s.rep&&s.status!=='done');
+  document.getElementById('rpNote').style.display=hasR?'flex':'none';
+  if(hasR) document.getElementById('rpNoteT').textContent='Replanlagte stints (R): rekkef\u00f8lge beholdt, tider justert iht. regler.';
+  // Only show drive stints – pit rows are omitted (pit info visible in Neste hendelser)
+  document.getElementById('liveTbl').innerHTML=lStints
+    .filter(s=>s.type==='drive')
+    .map(s=>stintRow(s,++sn,true)).join('');
+}
+
+function rndrAll(){rndrTL('lTlBar','lTlR','lBBar',lStints,rSec);rndrLive();rndrNextAct();}
+
+function shAlert(msg){
+  document.getElementById('rpAlert').style.display='flex';
+  document.getElementById('rpTxt').textContent=msg;
+  setTimeout(()=>document.getElementById('rpAlert').style.display='none',9000);
+  addLog(msg); ann(msg);
+}
+function addLog(m){
+  elog.unshift(m);
+  document.getElementById('logL').innerHTML=elog.map(e=>'<div style="padding:5px 0;border-bottom:1px solid #1E1E1E;color:#555">'+e+'</div>').join('');
+}
+
+// ── Oversikt ──────────────────────────────────────────────────
+function drvSum(arr){
+  return drivers.map((d,i)=>{
+    const my=arr.filter(s=>s.type==='drive'&&s.di===i);
+    return{i,name:d.name||('F\u00f8rer '+(i+1)),col:C[i%C.length],lt:d.lt,
+      totalSec:my.reduce((a,s)=>a+(s.end-s.start),0),
+      totalRnd:my.reduce((a,s)=>a+Math.floor((s.end-s.start)/(s.lT||d.lt||40)),0),
+      stintCount:my.length,
+      stints:my.map(s=>({sn:s.sn,end:s.end,signAt:s.signAt,lapT:s.lT||d.lt,status:s.status||'future',dur:s.end-s.start}))};
+  });
+}
+
+function rndrOvr(){
+  const src=lStints.length?lStints:stints;
+  if(!src.length){document.getElementById('ovrEmpty').style.display='block';document.getElementById('ovrContent').style.display='none';return;}
+  document.getElementById('ovrEmpty').style.display='none'; document.getElementById('ovrContent').style.display='block';
+  const sum=drvSum(src),maxS=Math.max(...sum.map(d=>d.totalSec),1),avgS=sum.reduce((a,d)=>a+d.totalSec,0)/sum.length,avgP=(avgS/maxS*100).toFixed(1);
+  const live=lStints.length>0;
+  document.getElementById('ovrLiveSection').style.display=live?'block':'none';
+  if(live) rndrOvrLive(sum);
+  document.getElementById('ovrCards').innerHTML=sum.map(d=>{
+    const pct=(d.totalSec/maxS*100).toFixed(1), dev=d.totalSec-avgS;
+    const devStr=Math.abs(dev)>30?(' \u2013 '+(dev>0?'+':'-')+Math.round(Math.abs(dev)/60)+'m vs snitt'):'';
+    const chips=d.stints.map(st=>{
+      const rnd=Math.floor(st.dur/(st.lapT||40)),done=st.status==='done',act2=st.status==='active';
+      return '<span class="chip" style="'+(act2?('border-color:'+d.col+';border-width:2px'):(done?'opacity:.45':''))+'"><span class="chip-t">Stint '+st.sn+' \u00b7 '+Math.round(st.dur/60)+'m \u00b7 ~'+rnd+' runder</span><span class="chip-s">\u26d1 Pit-skilt: '+fm(st.signAt)+' \u2192 Pit inn: '+fm(st.end)+'</span></span>';
+    }).join('');
+    return '<div class="dcard" role="listitem"><div class="dcard-hd"><div style="width:14px;height:14px;border-radius:50%;background:'+d.col+';flex-shrink:0;border:2px solid '+d.col+'"></div><div class="dcard-nm">'+d.name+'</div><span class="dcard-tag" style="background:'+d.col+'22;color:'+d.col+';border-color:'+d.col+'">'+d.stintCount+' stint'+(d.stintCount!==1?'s':'')+'</span></div>'
+      +'<div class="dm"><div class="dmi"><div class="dmv">'+fmS(d.totalSec)+'</div><div class="dml">Total kj\u00f8retid</div></div><div class="dmi"><div class="dmv">'+d.totalRnd+'</div><div class="dml">Forv. runder</div></div><div class="dmi"><div class="dmv">'+d.stintCount+'</div><div class="dml">Stints</div></div></div>'
+      +'<div class="dbw"><div class="dbl"><span style="color:#555">'+Math.round(d.totalSec/60)+' min'+devStr+'</span><span style="color:#E8002D;font-size:9px">\u2191 snitt</span></div><div class="db" role="progressbar" aria-valuenow="'+Math.round(d.totalSec/60)+'" aria-valuemin="0" aria-valuemax="'+Math.round(maxS/60)+'"><div class="dbf" style="width:'+pct+'%;background:'+d.col+'"></div><div class="dba" style="left:'+avgP+'%"></div></div></div>'
+      +'<div class="chips">'+(chips||'<span style="font-size:11px;color:#555">Ingen stints tildelt</span>')+'</div></div>';
+  }).join('');
+  document.getElementById('ovrTable').innerHTML=sum.map(d=>{
+    const pct=(d.totalSec/maxS*100).toFixed(1);
+    return '<tr><td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:'+d.col+';display:inline-block;flex-shrink:0"></span>'+d.name+'</span></td>'
+      +'<td style="text-align:right;color:#fff">'+fmS(d.totalSec)+'</td><td style="text-align:right;color:#fff">'+d.totalRnd+'</td><td style="text-align:right;color:#fff">'+d.stintCount+'</td>'
+      +'<td><div style="height:9px;background:#111;border-radius:4px;overflow:hidden;position:relative;border:1px solid #2A2A2A"><div style="height:100%;width:'+pct+'%;background:'+d.col+';border-radius:4px"></div><div style="position:absolute;top:0;left:'+avgP+'%;width:2px;height:100%;background:#E8002D;opacity:.8"></div></div></td></tr>';
+  }).join('');
+}
+
+function rndrOvrLive(sum){
+  const maxP=Math.max(...sum.map(d=>d.totalSec),1);
+  document.getElementById('ovrLiveCards').innerHTML=sum.map(d=>{
+    const myD=lStints.filter(s=>s.type==='drive'&&s.di===d.i&&s.status==='done');
+    const myA=lStints.find(s=>s.type==='drive'&&s.di===d.i&&s.status==='active');
+    const dS=myD.reduce((a,s)=>a+(s.end-s.start),0), aS=myA?lElap-(myA.aStart||myA.start):0;
+    const tot=dS+aS, rN=myD.reduce((a,s)=>a+Math.floor((s.end-s.start)/(s.lT||d.lt||40)),0)+(myA?Math.floor(aS/(myA.lT||d.lt||40)):0);
+    const np2=(Math.min(100,tot/maxP*100)).toFixed(1), pp2=(d.totalSec/maxP*100).toFixed(1);
+    return '<div class="ldp" style="'+(myA?('border-color:'+d.col+';border-width:2px'):'')+'"><div style="width:12px;height:12px;border-radius:50%;background:'+d.col+';flex-shrink:0;margin-top:3px;border:2px solid '+d.col+(myA?(';box-shadow:0 0 8px '+d.col+'88'):'')+'"></div>'
+      +'<div class="ldp-b"><div class="ldp-n">'+d.name+(myA?'<span class="badge ba">Kj\u00f8rer n\u00e5</span>':'')+'</div>'
+      +'<div style="display:flex;gap:14px;font-size:11px;color:#555;margin-top:4px;flex-wrap:wrap"><span>'+fmS(tot)+' <span style="color:#2A2A2A">/ '+fmS(d.totalSec)+'</span></span><span>'+rN+' <span style="color:#2A2A2A">/ ~'+d.totalRnd+'</span></span><span>'+d.stintCount+' stints</span></div>'
+      +'<div class="ldb" role="progressbar" aria-valuenow="'+Math.round(tot/60)+'" aria-valuemin="0" aria-valuemax="'+Math.round(d.totalSec/60)+'" aria-label="'+Math.round(tot/60)+' av '+Math.round(d.totalSec/60)+' min"><div class="ldbf" style="width:'+np2+'%;background:'+d.col+'"></div><div class="ldbp" style="left:'+pp2+'%"></div></div>'
+      +'</div></div>';
+  }).join('');
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// LOGG – lagre og hente strategier via Cloudflare Workers + KV
+// ---------------------------------------------------------------
+// KONFIGURASJON: Oppdater de to linjene under etter at du har
+// deployet gokart-worker.js til Cloudflare Workers.
+//
+//   API_BASE  = URL til din Worker, f.eks.:
+//               'https://gokart-logg.dittbrukernavn.workers.dev'
+//   API_TOKEN = Det hemmelige tokenet du satte som AUTH_TOKEN
+//               i Worker-ens Environment Variables
+// ═══════════════════════════════════════════════════════════════
+const API_BASE  = 'https://DIN-WORKER.workers.dev';   // <-- bytt ut
+const API_TOKEN = 'DITT-HEMMELIGE-TOKEN';              // <-- bytt ut
+const LOGG_MAX  = 5;
+
+// ── HTTP-hjelpere ─────────────────────────────────────────────
+function apiFetch(path, options={}) {
+  return fetch(API_BASE + path, {
+    ...options,
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': 'Bearer ' + API_TOKEN,
+      ...(options.headers||{}),
+    },
+  });
+}
+
+// ── Status-indikator i Logg-fanen ─────────────────────────────
+function loggStatus(msg, isErr) {
+  const el = document.getElementById('loggStatus');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = isErr ? '#E8002D' : '#39D353';
+  el.style.display = 'block';
+  if (!isErr) setTimeout(() => { el.style.display='none'; }, 3000);
+}
+
+// ── Lagre strategi ────────────────────────────────────────────
+async function saveStrategy() {
+  if (!stints || stints.length === 0) {
+    alert('Beregn en strategi f\u00f8rst.');
+    return;
+  }
+
+  const saveBtn = document.getElementById('saveStratBtn');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '💾 Lagrer...'; }
+
+  const now     = new Date();
+  const dateStr = now.toLocaleDateString('nb-NO', {day:'2-digit', month:'2-digit', year:'numeric'});
+  const timeStr = now.toLocaleTimeString('nb-NO', {hour:'2-digit', minute:'2-digit'});
+
+  const payload = {
+    name:    dateStr + ' ' + timeStr,
+    savedAt: now.toISOString(),
+    mode:    mlbl(),
+    bsum:    bsum(),
+    rSec, minP, pitSec, lastBI, lastBD, kA, kB,
+    drivers: drivers.map(d => ({ name: d.name, lt: d.lt })),
+    stints:  stints.map(s => ({
+      type: s.type, di: s.di, name: s.name||'', sn: s.sn||0,
+      start: s.start, end: s.end, lT: s.lT||0,
+      signAt: s.signAt||0, bc: s.bc||0, num: s.num||0,
+      plannedRounds: s.plannedRounds||0,
+    })),
+  };
+
+  try {
+    const res = await apiFetch('/logg', {
+      method: 'POST',
+      body:   JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.error || 'HTTP ' + res.status);
+    }
+    const data = await res.json();
+    loggStatus('\u2713 Strategi lagret (' + data.total + '/' + LOGG_MAX + ')');
+    ann('Strategi lagret: ' + payload.name);
+    await rndrLogg();
+    document.querySelector('.tab[data-t="logg"]').click();
+  } catch (err) {
+    loggStatus('Feil ved lagring: ' + err.message, true);
+    console.error('saveStrategy:', err);
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '\uD83D\uDCBE Lagre gjeldende strategi'; }
+  }
+}
+
+// ── Slett strategi ────────────────────────────────────────────
+async function deleteLoggEntry(id) {
+  if (!confirm('Slette denne strategien?')) return;
+  try {
+    const res = await apiFetch('/logg/' + id, { method: 'DELETE' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    loggStatus('\u2713 Strategi slettet');
+    await rndrLogg();
+  } catch (err) {
+    loggStatus('Feil ved sletting: ' + err.message, true);
+  }
+}
+
+// ── Last inn strategi ─────────────────────────────────────────
+async function loadStrategy(id) {
+  // Fetch fresh list and find entry
+  let entry;
+  try {
+    const res     = await apiFetch('/logg');
+    const data    = await res.json();
+    entry = (data.entries||[]).find(e => e.id === id);
+  } catch (err) {
+    alert('Kunne ikke hente strategi: ' + err.message);
+    return;
+  }
+  if (!entry) { alert('Strategi ikke funnet.'); return; }
+
+  // Restore state
+  mode    = entry.mode.includes('Nitro') ? 'speed5' : entry.mode.includes('Boost') ? 'boost' : 'speed4';
+  rSec    = entry.rSec;
+  minP    = entry.minP;
+  pitSec  = entry.pitSec;
+  lastBI  = entry.lastBI  || 10;
+  lastBD  = entry.lastBD  || 60;
+  kA      = entry.kA;
+  kB      = entry.kB;
+  drivers = entry.drivers.map(d => ({ name: d.name, lt: d.lt }));
+  boostW  = mkBW(lastBI, lastBD, rSec);
+  stints  = entry.stints.map(s => ({ ...s, status:'future', aStart:null, rep:false }));
+
+  // Update form fields
+  document.getElementById('raceDur').value = Math.round(rSec/60);
+  document.getElementById('minPits').value = minP;
+  document.getElementById('pitDur').value  = pitSec;
+  document.getElementById('bi').value      = lastBI;
+  document.getElementById('bd').value      = lastBD;
+  if (kA) document.getElementById('kA').value = kA;
+  if (kB) document.getElementById('kB').value = kB;
+
+  // Mode buttons
+  document.querySelectorAll('.mb').forEach(b => {
+    b.setAttribute('aria-pressed', b.dataset.m === mode ? 'true' : 'false');
+  });
+  document.getElementById('bbox').style.display = mode==='boost' ? 'block' : 'none';
+
+  // Driver count + fields
+  setCount(drivers.length);
+  drivers.forEach((d,i) => {
+    const n = document.getElementById('d'+i+'n');
+    const l = document.getElementById('d'+i+'l');
+    if (n) n.value = d.name;
+    if (l) l.value = d.lt.toFixed(1).replace('.',',');
+  });
+
+  rndrSetup(stints);
+  document.getElementById('res').style.display = 'block';
+
+  // Reset live
+  lStints = []; lRun = false; lElap = 0; elog = [];
+  clearInterval(lTimer); lTimer = null;
+  document.getElementById('lContent').style.display = 'none';
+  document.getElementById('lEmpty').style.display   = 'block';
+
+  ann('Strategi lastet: ' + entry.name);
+  document.querySelector('.tab[data-t="setup"]').click();
+}
+
+// ── Render Logg-fanen ─────────────────────────────────────────
+async function rndrLogg() {
+  const listEl  = document.getElementById('loggList');
+  const emptyEl = document.getElementById('loggEmpty');
+  if (!listEl || !emptyEl) return;
+
+  listEl.innerHTML  = '<div style="color:#555;font-size:12px;padding:1rem 0;text-align:center">Henter strategier\u2026</div>';
+  emptyEl.style.display = 'none';
+
+  let entries = [];
+  try {
+    const res  = await apiFetch('/logg');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    entries    = data.entries || [];
+  } catch (err) {
+    listEl.innerHTML = '<div class="al al-i" style="margin:0">'
+      + '\u26a0 Kunne ikke hente strategier: ' + err.message
+      + '<br><small style="color:#555">Sjekk at API_BASE og API_TOKEN er riktig konfigurert i HTML-filen.</small>'
+      + '</div>';
+    return;
+  }
+
+  if (entries.length === 0) {
+    emptyEl.style.display = 'block';
+    listEl.innerHTML = '';
+    return;
+  }
+
+  listEl.innerHTML = entries.map(e => {
+    const driveStints = (e.stints||[]).filter(s => s.type==='drive');
+    const pitCount    = (e.stints||[]).filter(s => s.type==='pit').length;
+    const totalRace   = Math.round((e.rSec||7200)/60);
+    const nDrivers    = (e.drivers||[]).length;
+
+    const driverRows = (e.drivers||[]).map((d,i) => {
+      const my      = driveStints.filter(s => s.di===i);
+      const totalMin= Math.round(my.reduce((a,s)=>a+(s.end-s.start),0)/60);
+      const sns     = my.map(s=>s.sn).join(', ');
+      return '<div style="display:flex;gap:8px;align-items:center;font-size:11px;margin-bottom:3px">'
+        +'<span style="width:8px;height:8px;border-radius:50%;background:'+C[i%C.length]+';display:inline-block;flex-shrink:0"></span>'
+        +'<span style="color:#fff;min-width:90px">'+(d.name||'F\u00f8rer '+(i+1))+'</span>'
+        +'<span style="color:#555">'+totalMin+' min</span>'
+        +(sns?'<span style="color:#555;margin-left:4px">\u00b7 stint '+sns+'</span>':'')
+        +'</div>';
+    }).join('');
+
+    const tlSegs = (e.stints||[]).map(s => {
+      const l   = (s.start/(e.rSec||7200)*100).toFixed(2);
+      const w   = Math.max(0.5,(s.end-s.start)/(e.rSec||7200)*100).toFixed(2);
+      const col = s.type==='pit' ? '#E8002D' : C[(s.di||0)%C.length];
+      const op  = s.type==='pit' ? '0.6' : '0.85';
+      return '<div style="position:absolute;top:0;height:100%;left:'+l+'%;width:'+w+'%;background:'+col+';opacity:'+op+'"></div>';
+    }).join('');
+
+    return '<div class="logg-item">'
+      +'<div class="logg-item-hd">'
+        +'<div>'
+          +'<div class="logg-item-name">\uD83D\uDCCB '+e.name+'</div>'
+          +'<div class="logg-item-meta">'+e.mode+' \u00b7 '+totalRace+' min \u00b7 '+nDrivers+' f\u00f8rere \u00b7 '+pitCount+' pitstop</div>'
+        +'</div>'
+        +'<div class="logg-item-actions">'
+          +'<button class="btn pr" style="font-size:11px;padding:5px 10px" onclick="loadStrategy('+e.id+')">Last inn</button>'
+          +'<button class="btn dn" style="font-size:11px;padding:5px 10px" onclick="deleteLoggEntry('+e.id+')">Slett</button>'
+        +'</div>'
+      +'</div>'
+      +'<div style="position:relative;height:14px;background:#111;border-radius:4px;overflow:hidden;margin-bottom:.6rem;border:1px solid #2A2A2A">'+tlSegs+'</div>'
+      +'<div class="logg-detail">'+driverRows+'</div>'
+    +'</div>';
+  }).join('');
+}
+
+
+// ── Init ──────────────────────────────────────────────────────
+drivers = Array.from({length:4}, () => ({name:'', lt:40}));
+rdDrvs();
+
 </script>
 </body>
 </html>

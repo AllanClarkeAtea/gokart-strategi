@@ -783,13 +783,18 @@ function assignTimesNitro(seq, t0, pitsDone, dT, snStart){
     }
   }
 
-  // Garantér at siste stint slutter på rSec
+  // Siste stint: strekk kun innenfor MAX_S.
+  // Hvis det er mer tid igjen enn MAX_S tillater, vil enforceRules splitte
+  // stintet og legge inn ekstra pitstop + ny fører automatisk.
   const lastDrive = [...res].reverse().find(s => s.type === 'drive');
-  if(lastDrive && lastDrive.end < rSec){
-    lastDrive.end = rSec;
-    lastDrive.signAt = lastDrive.end - SIGN_B;
-    lastDrive.plannedRounds = Math.floor((lastDrive.end - lastDrive.start) / (drivers[lastDrive.di].lt||40));
-    lastDrive.bc = boostW.filter(([a]) => a >= lastDrive.start && a < lastDrive.end).length;
+  if(lastDrive){
+    const maxEnd = Math.min(lastDrive.start + MAX_S, rSec);
+    if(lastDrive.end < maxEnd){
+      lastDrive.end = maxEnd;
+      lastDrive.signAt = lastDrive.end - SIGN_B;
+      lastDrive.plannedRounds = Math.floor((lastDrive.end - lastDrive.start) / (drivers[lastDrive.di].lt||40));
+      lastDrive.bc = boostW.filter(([a]) => a >= lastDrive.start && a < lastDrive.end).length;
+    }
   }
   return{stints:res, finalDT:acc};
 }
@@ -893,13 +898,17 @@ function assignTimes(seq, t0, pitsDone, dT, snStart){
       clk=ae; if(clk>=rSec) break;
     }
   }
-  // Extend the very last drive stint to exactly rSec so the race
-  // always ends at the configured duration (e.g. 120:00).
+  // Extend last drive stint toward rSec, but capped at MAX_S.
+  // enforceRules will split if more time remains than MAX_S allows.
   const lastDrive = [...res].reverse().find(s=>s.type==='drive');
   if(lastDrive && lastDrive.end < rSec){
-    lastDrive.end = rSec;
-    lastDrive.signAt = lastDrive.end - SIGN_B;
-    lastDrive.bc = boostW.filter(([a])=>a>=lastDrive.start&&a<lastDrive.end).length;
+    const maxEnd=Math.min(lastDrive.start+MAX_S, rSec);
+    if(lastDrive.end < maxEnd){
+      lastDrive.end=maxEnd;
+      lastDrive.signAt=lastDrive.end-SIGN_B;
+      lastDrive.plannedRounds=Math.floor((lastDrive.end-lastDrive.start)/(lastDrive.lT||40));
+      lastDrive.bc=boostW.filter(([a])=>a>=lastDrive.start&&a<lastDrive.end).length;
+    }
   }
   return{stints:res, finalDT:acc};
 }
@@ -994,15 +1003,14 @@ function replanKeepOrder(fromLIdx, newStart){
   const dtTemp=dtNow.slice();
   const allocations=futDriveIdxs.map((idx,k)=>{
     const di=lStints[idx].di;
-    const remainingStints=futureStintCount[di]; // stints left for this driver including this one
+    const remainingStints=futureStintCount[di];
     const deficit=Math.max(0, equalShare - dtTemp[di]);
-    // Give this stint: deficit / remainingStints, nudged toward MAX_S for multi-stint drivers
     let ideal=Math.round(deficit / remainingStints);
-    // If driver has multiple future stints, prefer giving MORE now (closer to MAX_S)
-    // so their remaining stint can also be near equal share
     if(remainingStints>1) ideal=Math.min(MAX_S, Math.max(ideal, Math.round(deficit*0.55)));
-    ideal=clampStint(di, ideal, dtTemp);
-    ideal=Math.max(MIN_S, Math.min(MAX_S, ideal));
+    // Strictly enforce MAX_S (20 min) and MAX_TOT (50 min)
+    ideal=Math.min(ideal, MAX_S);
+    ideal=Math.min(ideal, Math.max(0, MAX_TOT - dtTemp[di]));
+    ideal=Math.max(MIN_S, ideal);
     dtTemp[di]+=ideal;
     futureStintCount[di]--;
     return ideal;
@@ -1047,13 +1055,16 @@ function replanKeepOrder(fromLIdx, newStart){
     }
   }
 
-  // Always guarantee the very last drive stint (active or future) ends at rSec
+  // Guarantee last drive stint ends at rSec, but never exceeding MAX_S.
+  // If gap > MAX_S, enforceRules will split it on the next call.
   const allNonDone=lStints.filter(s=>s.type==='drive'&&(s.status==='active'||s.status==='future'));
   if(allNonDone.length>0){
     const ld=allNonDone[allNonDone.length-1];
-    if(ld.end<rSec){
-      ld.end=rSec;
+    const maxAllowed=Math.min(ld.start+MAX_S, rSec);
+    if(ld.end<rSec && ld.end<maxAllowed){
+      ld.end=maxAllowed;
       ld.signAt=ld.end-SIGN_B;
+      ld.plannedRounds=Math.floor((ld.end-ld.start)/(ld.lT||40));
       ld.bc=boostW.filter(([a])=>a>=ld.start&&a<ld.end).length;
       ld.rep=true;
     }
@@ -1291,13 +1302,15 @@ function pitNaa(){
     nds.signAt=nds.end-SIGN_B;
     nds.bc=boostW.filter(([a])=>a>=t&&a<nds.end).length;
   }
-  // Final guarantee: last drive stint ends at rSec (covers active + future)
+  // Final guarantee: last drive stint ends at rSec, but never over MAX_S.
   const allNonDone=lStints.filter(s=>s.type==='drive'&&(s.status==='active'||s.status==='future'));
   if(allNonDone.length>0){
     const veryLast=allNonDone[allNonDone.length-1];
-    if(veryLast.end<rSec){
-      veryLast.end=rSec;
+    const maxEnd=Math.min(veryLast.start+MAX_S, rSec);
+    if(veryLast.end<maxEnd){
+      veryLast.end=maxEnd;
       veryLast.signAt=veryLast.end-SIGN_B;
+      veryLast.plannedRounds=Math.floor((veryLast.end-veryLast.start)/(veryLast.lT||40));
       veryLast.bc=boostW.filter(([a])=>a>=veryLast.start&&a<veryLast.end).length;
     }
   }

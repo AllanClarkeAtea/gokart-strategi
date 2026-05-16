@@ -630,118 +630,115 @@ function clampStint(di, proposed, accDT){
 }
 
 // ── Nitro-modus: maksimer antall runder ──────────────────────
-// Logikk:
-//   1. Ranker førere etter rundetid (raskest først)
-//   2. Raskere førere tildeles mer kjøretid (nærmere MAX_S)
-//   3. Tregere førere tildeles mindre kjøretid (ned mot MIN_S)
-//   4. Alle grunnregler overholdes (MAX_S, MAX_TOT, MIN_S, kart-parity)
-//   5. Ingen fører kjører to stints på rad
+// Prinsipp:
+//   - Raskere førere (lavere rundetid) får mer kjøretid
+//   - Ingen fører kjører to stints på rad (strengt håndhevet)
+//   - MAX_S (20 min), MAX_TOT (50 min), MIN_S (7 min) overholdes
+//   - Løpet ALLTID fullføres til nøyaktig rSec
 
-// Beregn forventet runder for en gitt kjøretid og rundetid
-function expectedRounds(driveSec, lapT){ return Math.floor(driveSec / lapT); }
-
-// buildSeqNitro: sekvens der raskeste fører roterer hyppigst
-function buildSeqNitro(nS, dT, startSn){
+function buildSeqNitro(nS, dT, startSn, lastDi){
   const n = drivers.length;
-  // Speed score: lavere rundetid = høyere prioritet
-  // Normaliser rundetider: raskest får score 1.0, tregeste får score 0.0
-  const lapTimes = drivers.map(d => d.lt || 40);
-  const minLap   = Math.min(...lapTimes);
-  const maxLap   = Math.max(...lapTimes);
-  const range    = maxLap - minLap || 1;
+  const lapTimes    = drivers.map(d => d.lt || 40);
+  const minLap      = Math.min(...lapTimes);
+  const maxLap      = Math.max(...lapTimes);
+  const lapRange    = maxLap - minLap || 1;
 
+  // Speed score 0.0 (tregest) – 1.0 (raskest)
   const info = drivers.map((d,i) => ({
     i,
-    speedScore: (maxLap - (d.lt||40)) / range, // 1.0 = raskest, 0.0 = tregest
-    sl: 0,
-    dtAcc: dT[i] || 0,
+    speed: (maxLap - (d.lt||40)) / lapRange,
+    sl:    0,
   }));
 
-  // Fordel stints: raskere førere får flere stints (proporsjonalt med speed score)
-  // Minimum 1 stint per fører (alle må kjøre)
-  const totalSpeedScore = info.reduce((a,d) => a + (0.3 + d.speedScore * 0.7), 0);
+  // Fordel stints vektet mot fart, minimum 1 per fører
+  const totalW = info.reduce((a,d) => a + (0.35 + d.speed*0.65), 0);
   let assigned = 0;
   info.forEach(d => {
-    const weight = (0.3 + d.speedScore * 0.7) / totalSpeedScore;
-    d.sl = Math.max(1, Math.round(nS * weight));
+    d.sl = Math.max(1, Math.round(nS * (0.35 + d.speed*0.65) / totalW));
     assigned += d.sl;
   });
-  // Adjust rounding errors
+  // Korriger avrundingsfeil – legg til/fjern fra raskeste/tregeste
   let diff = nS - assigned;
-  // Sort by speed (fastest first) to add/remove stints from fastest/slowest
-  const sorted = [...info].sort((a,b) => b.speedScore - a.speedScore);
-  let idx2 = 0;
-  while(diff > 0){ sorted[idx2 % n].sl++; diff--; idx2++; }
-  while(diff < 0){ const s = sorted.reverse().find(d=>d.sl>1); if(s){s.sl--;diff++;}else break; }
+  const bySpeed = [...info].sort((a,b) => b.speed - a.speed);
+  let k = 0;
+  while(diff > 0){ bySpeed[k % n].sl++; diff--; k++; }
+  while(diff < 0){
+    const s = bySpeed.find(d => d.sl > 1);
+    if(s){ s.sl--; diff++; } else break;
+  }
 
-  const seq = []; let last = -1;
+  const seq = [];
+  let last  = (lastDi!==undefined ? lastDi : -1);
   const sn0 = startSn || 1;
 
   for(let s = 0; s < nS; s++){
     const thisStintNum = sn0 + s;
-    let cands = info.filter(d => d.sl > 0 && d.i !== last);
-    if(!cands.length) cands = info.filter(d => d.sl > 0);
 
-    // Primary sort: kart-parity preference
-    // Secondary sort: speed score (fastest first) – differs from Standard which uses deficit
+    // Kandidater: har stints igjen OG er ikke samme som forrige
+    let cands = info.filter(d => d.sl > 0 && d.i !== last);
+
+    // Fallback (bør ikke skje ved korrekt sl-tildeling)
+    if(!cands.length){
+      cands = info.filter(d => d.sl > 0);
+    }
+
+    // Sorter: 1) kart-paritet-preferanse, 2) raskest fører
     cands.sort((a,b) => {
-      const kDiff = kartPenalty(a.i, thisStintNum) - kartPenalty(b.i, thisStintNum);
-      if(kDiff !== 0) return kDiff;
-      return b.speedScore - a.speedScore; // raskest først
+      const kd = kartPenalty(a.i, thisStintNum) - kartPenalty(b.i, thisStintNum);
+      if(kd !== 0) return kd;
+      return b.speed - a.speed;
     });
 
-    const p = cands[0];
-    seq.push(p.i);
-    recordKart(p.i, thisStintNum);
-    p.sl--;
-    last = p.i;
+    const pick = cands[0];
+    seq.push(pick.i);
+    recordKart(pick.i, thisStintNum);
+    pick.sl--;
+    last = pick.i;
   }
   return seq;
 }
 
-// assignTimesNitro: gir raskere førere mer tid (nærmere MAX_S),
-// tregere førere mindre tid (nærmere MIN_S), men aldri under MIN_S.
 function assignTimesNitro(seq, t0, pitsDone, dT, snStart){
   const tgtPits = Math.max(0, minP - pitsDone);
-  const res = []; let clk = t0; const acc = dT.slice(); let pd = 0, sn = snStart || 1;
+  const res     = [];
+  let clk       = t0;
+  const acc     = dT.slice();
+  let pd        = 0, sn = snStart || 1;
 
-  // Total tilgjengelig kjøretid
-  const totalDriveAvail = Math.max(0, rSec - t0 - tgtPits * pitSec);
+  const lapTimes = drivers.map(d => d.lt || 40);
+  const minLap   = Math.min(...lapTimes);
+  const maxLap   = Math.max(...lapTimes);
+  const lapRange = maxLap - minLap || 1;
 
-  // Beregn speed-vektet tildeling per stint
-  // Raskest fører får nærmere MAX_S, tregeste får nærmere MIN_S
-  const lapTimes  = drivers.map(d => d.lt || 40);
-  const minLap    = Math.min(...lapTimes);
-  const maxLap    = Math.max(...lapTimes);
-  const lapRange  = maxLap - minLap || 1;
+  function speedW(di){ return (maxLap - (drivers[di].lt||40)) / lapRange; } // 0–1
 
-  function speedWeight(di){
-    // 1.0 for raskeste, 0.0 for tregeste
-    return (maxLap - (drivers[di].lt || 40)) / lapRange;
-  }
-
-  // Pre-calculate ideal durations based on speed weights
-  const seqWeights = seq.map(di => 0.4 + speedWeight(di) * 0.6); // 0.4–1.0
-  const weightSum  = seqWeights.reduce((a,b) => a+b, 0);
+  // Pre-calc weights for this sequence
+  const weights    = seq.map(di => 0.4 + speedW(di) * 0.6);
+  const weightSum  = weights.reduce((a,b) => a+b, 0);
 
   for(let s = 0; s < seq.length; s++){
     const di  = seq[s];
-    const d   = drivers[di];
-    const lT  = d.lt || 40;
+    const lT  = drivers[di].lt || 40;
     const pL2 = Math.max(0, tgtPits - pd);
     const tR  = rSec - clk;
-    const reserve = pL2 * (pitSec + MIN_S);
 
-    // Speed-weighted ideal stint length
-    const myWeight   = seqWeights[s];
-    const remWeight  = seqWeights.slice(s).reduce((a,b) => a+b, 0);
-    const driveAvail = Math.max(0, tR - reserve);
-    let sl = Math.round((myWeight / remWeight) * driveAvail);
+    // Reserve time for remaining pits + minimum stints after this one
+    const stintsAfter  = seq.length - s - 1;
+    const pitsAfter    = Math.min(pL2, stintsAfter);
+    const reserve      = pitsAfter * pitSec + stintsAfter * MIN_S;
+    const driveAvail   = Math.max(MIN_S, tR - reserve);
 
-    // Clamp to rules
-    sl = clampStint(di, sl, acc);
-    sl = Math.max(MIN_S, Math.min(MAX_S, sl));
-    if(sl <= 0) sl = Math.min(MIN_S, tR);
+    // Weight-proportional allocation
+    const remW  = weights.slice(s).reduce((a,b) => a+b, 0);
+    let sl      = Math.round((weights[s] / remW) * driveAvail);
+
+    // Enforce MAX_S, MAX_TOT, MIN_S
+    sl = Math.min(sl, MAX_S);
+    sl = Math.min(sl, Math.max(0, MAX_TOT - acc[di]));
+    sl = Math.max(MIN_S, sl);
+    sl = Math.min(sl, tR - reserve);
+    sl = Math.max(MIN_S, sl);
+    if(sl <= 0) sl = MIN_S;
 
     const end  = Math.min(clk + sl, rSec);
     const sgT  = sgAt(end);
@@ -749,23 +746,28 @@ function assignTimesNitro(seq, t0, pitsDone, dT, snStart){
     const pRnd = Math.floor((end - clk) / lT);
 
     res.push({
-      type:'drive', di, name: drivers[di].name || ('F\u00f8rer '+(di+1)),
-      start:clk, end, col:C[di%C.length], lT, signAt:sgT,
-      status:'future', aStart:null, rep:false, sn, bc, plannedRounds:pRnd,
+      type:'drive', di,
+      name: drivers[di].name || ('F\u00f8rer '+(di+1)),
+      start:clk, end, col:C[di%C.length], lT,
+      signAt:sgT, status:'future', aStart:null, rep:false,
+      sn, bc, plannedRounds:pRnd,
     });
-    acc[di] += (end - clk); clk = end; sn++;
+    acc[di] += (end - clk);
+    clk = end; sn++;
     if(clk >= rSec) break;
 
     if(s < seq.length - 1){
       pd++;
-      const ndi = seq[s+1], wu = WU * (drivers[ndi]?.lt || 40);
+      const ndi = seq[s+1];
+      const wu  = WU * (drivers[ndi]?.lt || 40);
       const{ps, pe} = vPit(clk, pitSec, wu);
       if(ps >= rSec) break;
+      // Extend previous stint to pit time if it fits within MAX_S and MAX_TOT
       if(ps > clk){
         const li = res.length - 1;
         if(res[li]?.type === 'drive'){
-          const extra = ps - clk;
-          const newDur = (res[li].end - res[li].start) + extra;
+          const extra   = ps - clk;
+          const newDur  = (res[li].end - res[li].start) + extra;
           if(newDur <= MAX_S && acc[res[li].di] + extra <= MAX_TOT){
             acc[res[li].di] += extra;
             res[li].end = ps;
@@ -780,20 +782,6 @@ function assignTimesNitro(seq, t0, pitsDone, dT, snStart){
       res.push({type:'pit', start:ps, end:ae, num:pitsDone+pd, status:'future', rep:false});
       clk = ae;
       if(clk >= rSec) break;
-    }
-  }
-
-  // Siste stint: strekk kun innenfor MAX_S.
-  // Hvis det er mer tid igjen enn MAX_S tillater, vil enforceRules splitte
-  // stintet og legge inn ekstra pitstop + ny fører automatisk.
-  const lastDrive = [...res].reverse().find(s => s.type === 'drive');
-  if(lastDrive){
-    const maxEnd = Math.min(lastDrive.start + MAX_S, rSec);
-    if(lastDrive.end < maxEnd){
-      lastDrive.end = maxEnd;
-      lastDrive.signAt = lastDrive.end - SIGN_B;
-      lastDrive.plannedRounds = Math.floor((lastDrive.end - lastDrive.start) / (drivers[lastDrive.di].lt||40));
-      lastDrive.bc = boostW.filter(([a]) => a >= lastDrive.start && a < lastDrive.end).length;
     }
   }
   return{stints:res, finalDT:acc};
@@ -811,13 +799,13 @@ function kartPenalty(di, stintNum){
   return (kartHistory[di]||[]).filter(p=>p===parity).length;
 }
 
-function buildSeq(nS, dT, startSn){
+function buildSeq(nS, dT, startSn, lastDi){
   const n=drivers.length, tgt=rSec/n;
   const info=drivers.map((d,i)=>({i, def:(tgt-dT[i])+(Math.random()*2-1), sl:0}));
   const base=Math.floor(nS/n), ext=nS%n;
   info.sort((a,b)=>b.def-a.def);
   info.forEach((d,r)=>{ d.sl=base+(r<ext?1:0); });
-  const seq=[]; let last=-1;
+  const seq=[]; let last=(lastDi!==undefined?lastDi:-1);
   const sn0=startSn||1;
   for(let s=0;s<nS;s++){
     const thisStintNum=sn0+s;
@@ -914,8 +902,9 @@ function assignTimes(seq, t0, pitsDone, dT, snStart){
 }
 
 // buildStrat: full plan med regelvalidering
-function buildStrat(t0, pitsDone, dT, snStart){
-  const tgtPits=Math.max(0,minP-pitsDone), nS=tgtPits+1;
+function buildStrat(t0, pitsDone, dT, snStart, lastDi){
+  // lastDi: driver index of the last completed stint (cannot be first in new seq)
+  const tgtPits=Math.max(0,minP-pitsDone), nS=Math.max(1,tgtPits+1);
   resetKartHistory();
   if(lStints && lStints.length>0){
     lStints.filter(s=>s.type==='drive'&&s.status==='done')
@@ -924,12 +913,10 @@ function buildStrat(t0, pitsDone, dT, snStart){
     if(act) recordKart(act.di, act.sn);
   }
   if(mode==='speed5'){
-    // NITRO: maksimer antall runder – raskere førere får mer tid
-    const seq=buildSeqNitro(nS,dT,snStart);
+    const seq=buildSeqNitro(nS, dT, snStart, lastDi);
     return enforceRules(assignTimesNitro(seq,t0,pitsDone,dT,snStart), t0, pitsDone, dT);
   }
-  // STANDARD / STANDARD + BOOST: jevn fordeling
-  const seq=buildSeq(nS,dT,snStart);
+  const seq=buildSeq(nS, dT, snStart, lastDi);
   return enforceRules(assignTimes(seq,t0,pitsDone,dT,snStart), t0, pitsDone, dT);
 }
 
@@ -942,21 +929,24 @@ function enforceRules(plan, t0, pitsDone, dT){
 
   for(let i=0;i<stints.length;i++){
     const s=stints[i];
-    if(s.type!=='drive') { if(s.type==='drive'){} continue; }
     if(s.type!=='drive') continue;
     const dur=s.end-s.start;
-    const alreadyBefore=acc[s.di]; // accumulation BEFORE this stint
+    const alreadyBefore=acc[s.di];
     const maxAllowed=Math.min(MAX_S, MAX_TOT-alreadyBefore);
 
     if(dur>maxAllowed && maxAllowed>=MIN_S && s.end<rSec){
-      // Truncate and rebuild the rest
+      // Truncate this stint
       s.end=s.start+maxAllowed;
       s.signAt=sgAt(s.end);
+      s.plannedRounds=Math.floor((s.end-s.start)/(s.lT||40));
       s.bc=boostW.filter(([a])=>a>=s.start&&a<s.end).length;
       const pD=stints.slice(0,i+1).filter(x=>x.type==='pit').length+pitsDone;
       const newDT=dT.slice();
       stints.slice(0,i+1).filter(x=>x.type==='drive').forEach(x=>{ newDT[x.di]+=(x.end-x.start); });
-      const{stints:tail}=buildStrat(s.end, pD, newDT, s.sn+1);
+
+      // Build tail – pass lastDi so seq builder avoids same driver first
+      const{stints:tail}=buildStrat(s.end, pD, newDT, s.sn+1, s.di);
+
       stints=[...stints.slice(0,i+1), ...tail];
       changed=true;
       break;
@@ -964,6 +954,32 @@ function enforceRules(plan, t0, pitsDone, dT){
     acc[s.di]+=dur;
   }
   if(changed) return enforceRules({stints}, t0, pitsDone, dT);
+
+  // Final check: does the last drive stint reach rSec?
+  // If not and there is time remaining, add a pit + extra stint.
+  const lastDrive = [...stints].reverse().find(s=>s.type==='drive');
+  if(lastDrive && lastDrive.end < rSec){
+    const gap = rSec - lastDrive.end;
+    if(gap <= MAX_S && (lastDrive.end - lastDrive.start) < MAX_S){
+      // Extend last stint if it won't exceed MAX_S
+      const newEnd = Math.min(lastDrive.end + gap, lastDrive.start + MAX_S, rSec);
+      if(newEnd > lastDrive.end){
+        lastDrive.end = newEnd;
+        lastDrive.signAt = sgAt(newEnd);
+        lastDrive.plannedRounds = Math.floor((newEnd-lastDrive.start)/(lastDrive.lT||40));
+        lastDrive.bc = boostW.filter(([a])=>a>=lastDrive.start&&a<newEnd).length;
+      }
+    } else if(gap > MIN_S + pitSec){
+      // Need extra pit + drive to fill remaining time
+      const pD   = stints.filter(s=>s.type==='pit').length + pitsDone;
+      const newDT= dT.slice();
+      stints.filter(s=>s.type==='drive').forEach(s=>{ newDT[s.di]+=(s.end-s.start); });
+      const lastDi = lastDrive.di;
+      const{stints:extra}=buildStrat(lastDrive.end, pD, newDT, lastDrive.sn+1, lastDi);
+      stints=[...stints, ...extra];
+    }
+  }
+
   return{stints, finalDT:acc};
 }
 

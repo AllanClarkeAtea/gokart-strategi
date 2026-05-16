@@ -159,12 +159,22 @@ tr:hover td{background:#1A1A1A}
 .logg-stints{overflow-x:auto;margin-top:.5rem}
 
 /* Responsive */
+/* Boost countdown */
+.boost-countdown{background:#1A1000;border:1.5px solid #C9A84C;border-radius:10px;padding:10px 14px;margin-bottom:.85rem;display:flex;align-items:center;gap:14px}
+.boost-cd-num{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;color:#C9A84C;min-width:60px}
+.boost-cd-lbl{font-size:10px;font-weight:700;color:#C9A84C;text-transform:uppercase;letter-spacing:.07em}
+.boost-cd-bar{flex:1;height:8px;background:#111;border-radius:4px;overflow:hidden;border:1px solid #2A2A2A}
+.boost-cd-fill{height:100%;background:#C9A84C;border-radius:4px;transition:width .9s linear}
+/* Excel export button */
+.xlsx-btn{padding:8px 14px;border:1.5px solid #39D353;border-radius:6px;background:#0A1A0A;color:#39D353;font-size:12px;cursor:pointer;font-weight:700;white-space:nowrap}
+.xlsx-btn:hover{background:#0F2A0F}
 @media(max-width:480px){
   .sg{grid-template-columns:repeat(2,1fr)}
   .bflds{gap:12px}
   .hdr-logo{font-size:18px}
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <div class="wrapper">
@@ -289,6 +299,9 @@ tr:hover td{background:#1A1A1A}
     </div>
   </div>
   <button class="gbtn" style="background:#1A0005;color:#E8002D;border:2px solid #E8002D" onclick="goLive()">▶ Start løp – gå til live</button>
+  <div style="margin-top:8px;text-align:right">
+    <button class="xlsx-btn" onclick="exportExcel('plan')">📊 Eksporter strategi til Excel</button>
+  </div>
 </div>
 </div>
 
@@ -353,6 +366,19 @@ tr:hover td{background:#1A1A1A}
     <div id="lBBar" aria-hidden="true"></div>
   </div>
 
+  <!-- Boost countdown – only shown in boost mode -->
+  <div id="boostCdCard" style="display:none" class="boost-countdown" role="status" aria-live="polite">
+    <div>
+      <div class="boost-cd-lbl">⚡ Neste boost om</div>
+      <div class="boost-cd-num" id="boostCdNum">–</div>
+    </div>
+    <div style="flex:1">
+      <div class="boost-cd-bar"><div class="boost-cd-fill" id="boostCdFill" style="width:100%"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:#555;margin-top:3px">
+        <span id="boostCdPrev">–</span><span id="boostCdNext">–</span>
+      </div>
+    </div>
+  </div>
   <div id="psCard" style="display:none" class="al al-w" role="alert" aria-live="assertive">
     <div>
       <div style="font-weight:700;font-size:14px;color:#F5D98B" id="psTxt"></div>
@@ -392,6 +418,9 @@ tr:hover td{background:#1A1A1A}
     </div>
   </div>
 
+  <div style="text-align:right;margin-bottom:.85rem">
+    <button class="xlsx-btn" onclick="exportExcel('live')">📊 Eksporter løpsdata til Excel</button>
+  </div>
   <div class="card">
     <h2 class="sec">Hendelseslogg</h2>
     <div id="logL" style="font-size:12px;color:#555" role="log" aria-live="polite">Ingen hendelser ennå.</div>
@@ -583,6 +612,171 @@ function clampStint(di, proposed, accDT){
   return Math.min(proposed, MAX_S, maxByTotal);
 }
 
+// ── Nitro-modus: maksimer antall runder ──────────────────────
+// Logikk:
+//   1. Ranker førere etter rundetid (raskest først)
+//   2. Raskere førere tildeles mer kjøretid (nærmere MAX_S)
+//   3. Tregere førere tildeles mindre kjøretid (ned mot MIN_S)
+//   4. Alle grunnregler overholdes (MAX_S, MAX_TOT, MIN_S, kart-parity)
+//   5. Ingen fører kjører to stints på rad
+
+// Beregn forventet runder for en gitt kjøretid og rundetid
+function expectedRounds(driveSec, lapT){ return Math.floor(driveSec / lapT); }
+
+// buildSeqNitro: sekvens der raskeste fører roterer hyppigst
+function buildSeqNitro(nS, dT, startSn){
+  const n = drivers.length;
+  // Speed score: lavere rundetid = høyere prioritet
+  // Normaliser rundetider: raskest får score 1.0, tregeste får score 0.0
+  const lapTimes = drivers.map(d => d.lt || 40);
+  const minLap   = Math.min(...lapTimes);
+  const maxLap   = Math.max(...lapTimes);
+  const range    = maxLap - minLap || 1;
+
+  const info = drivers.map((d,i) => ({
+    i,
+    speedScore: (maxLap - (d.lt||40)) / range, // 1.0 = raskest, 0.0 = tregest
+    sl: 0,
+    dtAcc: dT[i] || 0,
+  }));
+
+  // Fordel stints: raskere førere får flere stints (proporsjonalt med speed score)
+  // Minimum 1 stint per fører (alle må kjøre)
+  const totalSpeedScore = info.reduce((a,d) => a + (0.3 + d.speedScore * 0.7), 0);
+  let assigned = 0;
+  info.forEach(d => {
+    const weight = (0.3 + d.speedScore * 0.7) / totalSpeedScore;
+    d.sl = Math.max(1, Math.round(nS * weight));
+    assigned += d.sl;
+  });
+  // Adjust rounding errors
+  let diff = nS - assigned;
+  // Sort by speed (fastest first) to add/remove stints from fastest/slowest
+  const sorted = [...info].sort((a,b) => b.speedScore - a.speedScore);
+  let idx2 = 0;
+  while(diff > 0){ sorted[idx2 % n].sl++; diff--; idx2++; }
+  while(diff < 0){ const s = sorted.reverse().find(d=>d.sl>1); if(s){s.sl--;diff++;}else break; }
+
+  const seq = []; let last = -1;
+  const sn0 = startSn || 1;
+
+  for(let s = 0; s < nS; s++){
+    const thisStintNum = sn0 + s;
+    let cands = info.filter(d => d.sl > 0 && d.i !== last);
+    if(!cands.length) cands = info.filter(d => d.sl > 0);
+
+    // Primary sort: kart-parity preference
+    // Secondary sort: speed score (fastest first) – differs from Standard which uses deficit
+    cands.sort((a,b) => {
+      const kDiff = kartPenalty(a.i, thisStintNum) - kartPenalty(b.i, thisStintNum);
+      if(kDiff !== 0) return kDiff;
+      return b.speedScore - a.speedScore; // raskest først
+    });
+
+    const p = cands[0];
+    seq.push(p.i);
+    recordKart(p.i, thisStintNum);
+    p.sl--;
+    last = p.i;
+  }
+  return seq;
+}
+
+// assignTimesNitro: gir raskere førere mer tid (nærmere MAX_S),
+// tregere førere mindre tid (nærmere MIN_S), men aldri under MIN_S.
+function assignTimesNitro(seq, t0, pitsDone, dT, snStart){
+  const tgtPits = Math.max(0, minP - pitsDone);
+  const res = []; let clk = t0; const acc = dT.slice(); let pd = 0, sn = snStart || 1;
+
+  // Total tilgjengelig kjøretid
+  const totalDriveAvail = Math.max(0, rSec - t0 - tgtPits * pitSec);
+
+  // Beregn speed-vektet tildeling per stint
+  // Raskest fører får nærmere MAX_S, tregeste får nærmere MIN_S
+  const lapTimes  = drivers.map(d => d.lt || 40);
+  const minLap    = Math.min(...lapTimes);
+  const maxLap    = Math.max(...lapTimes);
+  const lapRange  = maxLap - minLap || 1;
+
+  function speedWeight(di){
+    // 1.0 for raskeste, 0.0 for tregeste
+    return (maxLap - (drivers[di].lt || 40)) / lapRange;
+  }
+
+  // Pre-calculate ideal durations based on speed weights
+  const seqWeights = seq.map(di => 0.4 + speedWeight(di) * 0.6); // 0.4–1.0
+  const weightSum  = seqWeights.reduce((a,b) => a+b, 0);
+
+  for(let s = 0; s < seq.length; s++){
+    const di  = seq[s];
+    const d   = drivers[di];
+    const lT  = d.lt || 40;
+    const pL2 = Math.max(0, tgtPits - pd);
+    const tR  = rSec - clk;
+    const reserve = pL2 * (pitSec + MIN_S);
+
+    // Speed-weighted ideal stint length
+    const myWeight   = seqWeights[s];
+    const remWeight  = seqWeights.slice(s).reduce((a,b) => a+b, 0);
+    const driveAvail = Math.max(0, tR - reserve);
+    let sl = Math.round((myWeight / remWeight) * driveAvail);
+
+    // Clamp to rules
+    sl = clampStint(di, sl, acc);
+    sl = Math.max(MIN_S, Math.min(MAX_S, sl));
+    if(sl <= 0) sl = Math.min(MIN_S, tR);
+
+    const end  = Math.min(clk + sl, rSec);
+    const sgT  = sgAt(end);
+    const bc   = boostW.filter(([a]) => a >= clk && a < end).length;
+    const pRnd = Math.floor((end - clk) / lT);
+
+    res.push({
+      type:'drive', di, name: drivers[di].name || ('F\u00f8rer '+(di+1)),
+      start:clk, end, col:C[di%C.length], lT, signAt:sgT,
+      status:'future', aStart:null, rep:false, sn, bc, plannedRounds:pRnd,
+    });
+    acc[di] += (end - clk); clk = end; sn++;
+    if(clk >= rSec) break;
+
+    if(s < seq.length - 1){
+      pd++;
+      const ndi = seq[s+1], wu = WU * (drivers[ndi]?.lt || 40);
+      const{ps, pe} = vPit(clk, pitSec, wu);
+      if(ps >= rSec) break;
+      if(ps > clk){
+        const li = res.length - 1;
+        if(res[li]?.type === 'drive'){
+          const extra = ps - clk;
+          const newDur = (res[li].end - res[li].start) + extra;
+          if(newDur <= MAX_S && acc[res[li].di] + extra <= MAX_TOT){
+            acc[res[li].di] += extra;
+            res[li].end = ps;
+            res[li].signAt = sgAt(ps);
+            res[li].plannedRounds = Math.floor((res[li].end - res[li].start) / (drivers[res[li].di].lt||40));
+            res[li].bc = boostW.filter(([a]) => a >= res[li].start && a < ps).length;
+          }
+        }
+      }
+      clk = ps;
+      const ae = Math.min(pe, rSec);
+      res.push({type:'pit', start:ps, end:ae, num:pitsDone+pd, status:'future', rep:false});
+      clk = ae;
+      if(clk >= rSec) break;
+    }
+  }
+
+  // Garantér at siste stint slutter på rSec
+  const lastDrive = [...res].reverse().find(s => s.type === 'drive');
+  if(lastDrive && lastDrive.end < rSec){
+    lastDrive.end = rSec;
+    lastDrive.signAt = lastDrive.end - SIGN_B;
+    lastDrive.plannedRounds = Math.floor((lastDrive.end - lastDrive.start) / (drivers[lastDrive.di].lt||40));
+    lastDrive.bc = boostW.filter(([a]) => a >= lastDrive.start && a < lastDrive.end).length;
+  }
+  return{stints:res, finalDT:acc};
+}
+
 // ── Strategimotor ─────────────────────────────────────────────
 // kartHistory[di] = list of 'odd'|'even' parities this driver has driven
 let kartHistory = {};
@@ -696,15 +890,19 @@ function assignTimes(seq, t0, pitsDone, dT, snStart){
 // buildStrat: full plan med regelvalidering
 function buildStrat(t0, pitsDone, dT, snStart){
   const tgtPits=Math.max(0,minP-pitsDone), nS=tgtPits+1;
-  // Reset kart history for a fresh plan (history is seeded from already-done stints below)
   resetKartHistory();
-  // Seed history from stints already done in lStints (live mode)
   if(lStints && lStints.length>0){
     lStints.filter(s=>s.type==='drive'&&s.status==='done')
            .forEach(s=>recordKart(s.di, s.sn));
     const act=lStints.find(s=>s.type==='drive'&&s.status==='active');
     if(act) recordKart(act.di, act.sn);
   }
+  if(mode==='speed5'){
+    // NITRO: maksimer antall runder – raskere førere får mer tid
+    const seq=buildSeqNitro(nS,dT,snStart);
+    return enforceRules(assignTimesNitro(seq,t0,pitsDone,dT,snStart), t0, pitsDone, dT);
+  }
+  // STANDARD / STANDARD + BOOST: jevn fordeling
   const seq=buildSeq(nS,dT,snStart);
   return enforceRules(assignTimes(seq,t0,pitsDone,dT,snStart), t0, pitsDone, dT);
 }
@@ -856,6 +1054,7 @@ function rdUI(){
 function generate(){
   rdUI(); vKart();
   resetKartHistory(); // fresh plan – clear kart history
+
   const bad=drivers.filter(d=>isNaN(d.lt)||d.lt<10);
   if(bad.length){alert('Mangler rundetid: '+bad.map((d,i)=>d.name||('F\u00f8rer '+(i+1))).join(', '));return;}
   rSec=+document.getElementById('raceDur').value*60;
@@ -951,7 +1150,7 @@ function rndrSetup(arr){
   const rnd=arr.filter(s=>s.type==='drive').reduce((sm,s)=>sm+Math.floor((s.end-s.start)/s.lT),0);
   document.getElementById('statsG').innerHTML=[{v:pits,l:'Pitstop'},{v:rnd,l:'Est. runder'},{v:Math.round(rSec/60)+' min',l:'L\u00f8pstid'},{v:drivers.length,l:'F\u00f8rere'}]
     .map(x=>'<div class="sc"><div class="sv">'+x.v+'</div><div class="sl">'+x.l+'</div></div>').join('');
-  let sn=0; document.getElementById('stintTbl').innerHTML=arr.map(s=>stintRow(s,s.type==='drive'?++sn:null,false)).join('');
+  let sn=0; document.getElementById('stintTbl').innerHTML=arr.filter(s=>s.type==='drive').map(s=>stintRow(s,++sn,false)).join('');
 }
 
 // ── Live-tilstand ─────────────────────────────────────────────
@@ -1041,7 +1240,7 @@ function pitNaa(){
     // Just log and return; the active stint will run to rSec
     addLog(fm(t)+' \u2013 Pit registrert. Siste f\u00f8rer fullforer l\u00f8pet.');
     ann('Pit kl. '+fm(t)+'.');
-    updSel(true); rndrAll(); return;
+    updSel(true); rndrAll(); rndrBoostCountdown(); return;
   }
 
   // Steg 4: aktiver neste drive-stint fra na
@@ -1135,7 +1334,7 @@ function tick(){
   document.getElementById('lClock').textContent=fm(lElap);
   document.getElementById('lRem').textContent=fm(Math.max(0,rSec-lElap));
   document.getElementById('nowL').style.left=(lElap/rSec*100).toFixed(2)+'%';
-  chkSign(); rndrNextAct(); updSel(false);
+  chkSign(); rndrNextAct(); updSel(false); rndrBoostCountdown();
 }
 
 function chkSign(){
@@ -1522,6 +1721,204 @@ async function rndrLogg() {
   }).join('');
 }
 
+
+
+// rdDrvs: renders the simple driver input list (no drag-and-drop)
+function rdDrvs(){
+  document.getElementById('drvList').innerHTML=drivers.map((d,i)=>`
+    <div class="dg" role="listitem" style="margin-bottom:6px">
+      <input type="text" id="d${i}n" value="${d.name}" placeholder="F\u00f8rer ${i+1}"
+        oninput="drivers[${i}].name=this.value"
+        aria-label="Navn p\u00e5 f\u00f8rer ${i+1}"
+        style="border-left:4px solid ${C[i%C.length]};height:33px;padding:0 8px;font-size:13px;
+               border-radius:6px;background:#1E1E1E;color:#fff;width:100%;
+               border-top:1px solid #2A2A2A;border-right:1px solid #2A2A2A;border-bottom:1px solid #2A2A2A">
+      <input type="text" inputmode="decimal" id="d${i}l"
+        value="" placeholder="36,1"
+        oninput="onLap(${i},this.value)"
+        aria-label="Rundetid for f\u00f8rer ${i+1}"
+        style="height:33px;padding:0 8px;font-size:13px;border:1px solid #2A2A2A;
+               border-radius:6px;background:#1E1E1E;color:#fff;width:100%;
+               font-variant-numeric:tabular-nums">
+    </div>`).join('');
+}
+
+function setCount(n){
+  const old=drivers.slice(); dcnt=n;
+  drivers=Array.from({length:n},(_,i)=>({name:'',lt:40}));
+  old.forEach((o,i)=>{if(i<n){drivers[i].name=o.name;drivers[i].lt=o.lt;}});
+  document.querySelectorAll('.dcb').forEach(b=>{const a=+b.dataset.n===n;b.classList.toggle('on',a);b.setAttribute('aria-pressed',a?'true':'false');});
+  rdDrvs();
+}
+
+function rdUI(){
+  drivers.forEach((d,i)=>{
+    d.name=document.getElementById('d'+i+'n')?.value||'';
+    const p=pL(document.getElementById('d'+i+'l')?.value);
+    if(!isNaN(p)) d.lt=p;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BOOST COUNTDOWN
+// ═══════════════════════════════════════════════════════════════
+function rndrBoostCountdown(){
+  const card   = document.getElementById('boostCdCard');
+  const numEl  = document.getElementById('boostCdNum');
+  const fillEl = document.getElementById('boostCdFill');
+  const prevEl = document.getElementById('boostCdPrev');
+  const nextEl = document.getElementById('boostCdNext');
+  if(!card) return;
+
+  if(mode !== 'boost' || boostW.length === 0){
+    card.style.display = 'none';
+    return;
+  }
+
+  // Find previous and next boost windows relative to lElap
+  const prevBoost = [...boostW].reverse().find(([a])=>a<=lElap);
+  const nextBoost = boostW.find(([a])=>a>lElap);
+
+  if(!nextBoost){
+    // No more boosts
+    card.style.display = 'flex';
+    numEl.textContent  = 'Ferdig';
+    fillEl.style.width = '0%';
+    if(prevEl) prevEl.textContent = prevBoost ? ('Siste: '+fm(prevBoost[0])) : '';
+    if(nextEl) nextEl.textContent = '';
+    return;
+  }
+
+  const [nextStart, nextEnd] = nextBoost;
+  const secToNext = Math.max(0, nextStart - lElap);
+
+  // Are we IN a boost right now?
+  const inBoost = boostW.some(([a,b])=>lElap>=a&&lElap<b);
+
+  card.style.display = 'flex';
+
+  if(inBoost){
+    const [curA, curB] = boostW.find(([a,b])=>lElap>=a&&lElap<b);
+    const remaining = Math.max(0, curB - lElap);
+    numEl.textContent  = '⚡ BOOST AKTIV – ' + fm(remaining) + ' igjen';
+    numEl.style.color  = '#E8002D';
+    card.style.borderColor = '#E8002D';
+    card.style.background  = '#1A0005';
+    fillEl.style.background = '#E8002D';
+    const dur = curB - curA;
+    fillEl.style.width = (remaining/dur*100).toFixed(1)+'%';
+    if(prevEl) prevEl.textContent = 'Start: '+fm(curA);
+    if(nextEl) nextEl.textContent = 'Slutt: '+fm(curB);
+  } else {
+    numEl.textContent = fm(secToNext);
+    numEl.style.color = '#C9A84C';
+    card.style.borderColor = '#C9A84C';
+    card.style.background  = '#1A1000';
+    fillEl.style.background = '#C9A84C';
+    // Progress bar: fill = how much of interval has passed since last boost
+    const interval = nextStart - (prevBoost ? prevBoost[0] : 0);
+    const elapsed  = prevBoost ? lElap - prevBoost[0] : lElap;
+    const pct = interval > 0 ? Math.min(100,(elapsed/interval*100)) : 0;
+    fillEl.style.width = pct.toFixed(1)+'%';
+    if(prevEl) prevEl.textContent = prevBoost ? ('Forrige: '+fm(prevBoost[0])) : 'Start';
+    if(nextEl) nextEl.textContent = 'Neste: '+fm(nextStart);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 3. EXCEL EXPORT (SheetJS)
+// ═══════════════════════════════════════════════════════════════
+function exportExcel(mode_){
+  if(typeof XLSX === 'undefined'){
+    alert('SheetJS ikke lastet. Sjekk internettilkoblingen og prøv igjen.');
+    return;
+  }
+
+  const wb   = XLSX.utils.book_new();
+  const src  = (mode_==='live' && lStints.length>0) ? lStints : stints;
+  const isLive = mode_==='live' && lStints.length>0;
+
+  if(!src || src.length===0){ alert('Ingen strategi å eksportere. Beregn en strategi først.'); return; }
+
+  // ── Ark 1: Stint-plan ──────────────────────────────────────
+  const stintRows = [
+    ['#','Kart','Fører','Start','Slutt','Tid (min)','Runder (plan)','⛑ Pit-skilt','Status',
+     ...(isLive?['Fakt. runder','Avvik']:[])],
+  ];
+  let sn=0;
+  src.filter(s=>s.type==='drive').forEach(s=>{
+    sn++;
+    const dur  = s.end-s.start;
+    const rn   = s.plannedRounds!==undefined ? s.plannedRounds : Math.floor(dur/(s.lT||40));
+    const kn   = kNr(s.sn)||'–';
+    const actR = (isLive && actualLaps[s.sn]!==undefined) ? actualLaps[s.sn] : '';
+    const dev  = (isLive && actualLaps[s.sn]!==undefined) ? (actualLaps[s.sn]-rn) : '';
+    stintRows.push([
+      sn, kn, s.name||'', fm(s.start), fm(s.end),
+      +(dur/60).toFixed(1), rn, fm(sgAt(s.end)),
+      s.status||'plan',
+      ...(isLive?[actR, dev]:[]),
+    ]);
+  });
+
+  const wsStints = XLSX.utils.aoa_to_sheet(stintRows);
+  // Column widths
+  wsStints['!cols'] = [
+    {wch:4},{wch:6},{wch:16},{wch:8},{wch:8},
+    {wch:10},{wch:14},{wch:10},{wch:10},
+    ...(isLive?[{wch:14},{wch:8}]:[]),
+  ];
+  XLSX.utils.book_append_sheet(wb, wsStints, 'Stint-plan');
+
+  // ── Ark 2: Per-fører oversikt ──────────────────────────────
+  const drvRows = [['Fører','Stints','Total tid (min)','Forv. runder','Kart brukt']];
+  drivers.forEach((d,i)=>{
+    const my    = src.filter(s=>s.type==='drive'&&s.di===i);
+    const total = my.reduce((a,s)=>a+(s.end-s.start),0);
+    const rnd   = my.reduce((a,s)=>a+(s.plannedRounds!==undefined?s.plannedRounds:Math.floor((s.end-s.start)/(s.lT||40))),0);
+    const karts = [...new Set(my.map(s=>s.sn%2===1?('Kart A ('+kA+')'):'Kart B ('+kB+')'))].join(', ');
+    drvRows.push([d.name||('Fører '+(i+1)), my.length, +(total/60).toFixed(1), rnd, karts]);
+  });
+  const wsDrv = XLSX.utils.aoa_to_sheet(drvRows);
+  wsDrv['!cols'] = [{wch:16},{wch:8},{wch:16},{wch:14},{wch:22}];
+  XLSX.utils.book_append_sheet(wb, wsDrv, 'Førere');
+
+  // ── Ark 3: Løpsinnstillinger ──────────────────────────────
+  const cfgRows = [
+    ['Innstilling','Verdi'],
+    ['Løpstid', Math.round(rSec/60)+' min'],
+    ['Løpsmodus', mlbl()],
+    ['Min. pitstop', minP],
+    ['Pit-varighet', pitSec+' sek'],
+    ['Antall førere', drivers.length],
+    ['Kart A', kA||'–'],
+    ['Kart B', kB||'–'],
+    ...(mode==='boost'?[
+      ['Boost intervall', lastBI+' min'],
+      ['Boost varighet', lastBD+' sek'],
+    ]:[]),
+    ['Eksportert', new Date().toLocaleString('nb-NO')],
+  ];
+  const wsCfg = XLSX.utils.aoa_to_sheet(cfgRows);
+  wsCfg['!cols'] = [{wch:20},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, wsCfg, 'Innstillinger');
+
+  // ── Ark 4 (live only): Hendelseslogg ──────────────────────
+  if(isLive && elog.length>0){
+    const logRows = [['Hendelse'], ...elog.map(e=>[e])];
+    const wsLog = XLSX.utils.aoa_to_sheet(logRows);
+    wsLog['!cols'] = [{wch:60}];
+    XLSX.utils.book_append_sheet(wb, wsLog, 'Hendelseslogg');
+  }
+
+  // ── Last ned fil ──────────────────────────────────────────
+  const now     = new Date();
+  const dateStr = now.toLocaleDateString('nb-NO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\./g,'-');
+  const timeStr = now.toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'}).replace(':','');
+  const fname   = 'gokart-strategi-'+dateStr+'-'+timeStr+'.xlsx';
+  XLSX.writeFile(wb, fname);
+  ann('Excel-fil eksportert: '+fname);
+}
 
 // ── Init ──────────────────────────────────────────────────────
 drivers = Array.from({length:4}, () => ({name:'', lt:40}));

@@ -158,6 +158,10 @@ tr:hover td{background:#1A1A1A}
 .logg-detail{font-size:11px;color:#C0C0C0;margin-bottom:.6rem;line-height:1.6}
 .logg-stints{overflow-x:auto;margin-top:.5rem}
 
+/* Live table scrollable */
+#liveTbl td { white-space:nowrap; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
 /* Responsive */
 /* Boost countdown */
 .boost-countdown{background:#1A1000;border:1.5px solid #C9A84C;border-radius:10px;padding:10px 14px;margin-bottom:.85rem;display:flex;align-items:center;gap:14px}
@@ -418,14 +422,21 @@ tr:hover td{background:#1A1A1A}
 
   <div class="card">
     <h2 class="sec">Gjenværende stints</h2>
+    <div id="liveRoundsSummary" style="border-bottom:1px solid #2A2A2A;margin-bottom:10px"></div>
     <div id="rpNote" style="display:none" class="al al-i" role="status"><span id="rpNoteT"></span></div>
     <div style="overflow-x:auto">
     <table style="min-width:560px" aria-label="Gjenværende stints">
       <thead><tr>
-        <th style="width:24px">#</th><th style="width:36px">Kart</th><th>Fører</th>
-        <th style="width:46px">Start</th><th style="width:46px">Slutt</th>
-        <th style="width:40px">Tid</th><th style="width:48px">Runder</th>
-        <th style="width:58px;color:#C9A84C">⚑ Skilt</th>
+        <th style="width:24px">#</th>
+        <th style="width:36px">Kart</th>
+        <th>Fører</th>
+        <th style="width:46px">Start</th>
+        <th style="width:46px">Slutt</th>
+        <th style="width:40px">Tid</th>
+        <th style="width:48px">Runder</th>
+        <th style="width:62px;color:#C9A84C">⚑ Skilt</th>
+        <th style="width:58px;color:#C0C0C0" title="Faktisk registrert sluttid (via Pit nå)">Fakt. slutt</th>
+        <th style="width:52px;color:#C0C0C0" title="Faktisk start minus planlagt start">Δ plan</th>
         <th style="width:70px">Status</th>
         <th style="width:68px;color:#C0C0C0">Fakt. runder</th>
         <th style="width:60px;color:#C0C0C0">Avvik</th>
@@ -1135,37 +1146,59 @@ function generate(){
 
 // ── Tabellrad ─────────────────────────────────────────────────
 function stintRow(s, sn, live){
-  const sgT=s.type==='drive'?sgAt(s.end):s.start-SIGN_B;
+  const sgT = s.type==='drive' ? sgAt(s.end) : s.start-SIGN_B;
+
+  // ── Pit row ──────────────────────────────────────────────────
   if(s.type==='pit'){
-    const cl=live?(s.status==='done'?'bd':s.status==='active'?'ba':'bp'):'bp';
-    const lb=live?(s.status==='done'?'Ferdig':s.status==='active'?'P\u00e5g\u00e5r':'Plan'):'Pit';
+    const cl = live?(s.status==='done'?'bd':s.status==='active'?'ba':'bp'):'bp';
+    const lb = live?(s.status==='done'?'Ferdig':s.status==='active'?'Pågår':'Plan'):'Pit';
     return '<tr class="pit-bg"><td><span class="badge '+cl+'">P'+(s.num||'?')+'</span></td>'
-      +'<td></td><td style="color:#C0C0C0;font-size:11px;font-style:italic">Pit inn '+fm(s.start)+' → ut '+fm(s.end)+'</td>'
-      +'<td>'+fm(s.start)+'</td><td>'+fm(s.end)+'</td><td>'+Math.round(pitSec/60)+'m</td>'
       +'<td></td>'
-      +'<td class="sign-td">\u26d1 '+fm(sgT)+'</td>'
-      +'<td><span class="badge '+cl+'">'+lb+'</span></td><td></td><td></td></tr>';
+      +'<td style="color:#C0C0C0;font-size:11px;font-style:italic">Pit inn '+fm(s.start)+' → ut '+fm(s.end)+'</td>'
+      +'<td>'+fm(s.start)+'</td><td></td><td></td>'
+      +'<td class="sign-td">⛑ '+fm(sgT)+'</td>'
+      +'<td colspan="5"></td>'
+      +'<td><span class="badge '+cl+'">'+lb+'</span></td>'
+      +'<td></td><td></td></tr>';
   }
-  const dur=s.end-s.start;
-  // Use stored plannedRounds (static from strategy) when available;
-  // only recalculate if not yet set (e.g. setup tab preview)
-  const rn = (live && s.plannedRounds !== undefined)
+
+  // ── Drive row ─────────────────────────────────────────────────
+  const dur = s.end - s.start;
+  const rn  = (live && s.plannedRounds !== undefined)
     ? s.plannedRounds
     : Math.floor(dur/(s.lT||40));
-  const cl=live?(s.status==='done'?'bd':s.status==='active'?'ba':'bf'):'bf';
-  const lb=live?(s.status==='done'?'Ferdig':s.status==='active'?'Kj\u00f8rer':'Plan'):'Plan';
-  const ri=s.rep?'<span class="badge br" style="margin-left:3px">R</span>':'';
-  const bt=s.bc?('<span class="badge bbo" style="margin-left:3px">\u26a1'+s.bc+'</span>'):'';
-  // Actual laps cell: editable input for done stints, empty for future/active
+  const cl = live?(s.status==='done'?'bd':s.status==='active'?'ba':'bf'):'bf';
+  const lb = live?(s.status==='done'?'Ferdig':s.status==='active'?'Kjører':'Plan'):'Plan';
+  const ri = s.rep?'<span class="badge br" style="margin-left:3px">R</span>':'';
+  const bt = s.bc?('<span class="badge bbo" style="margin-left:3px">⚡'+s.bc+'</span>'):'';
+
+  const actualStart = (s.aStart !== null && s.aStart !== undefined) ? s.aStart : s.start;
+
+  // ── Actual end time (set when pitNaa fires) ──────────────────
+  let faktSluttCell = '<td style="color:#555;text-align:center">–</td>';
+  if(live && s.status==='done' && s.actualEnd !== undefined){
+    faktSluttCell = '<td style="color:#C0C0C0;font-size:11px;text-align:center">'+fm(s.actualEnd)+'</td>';
+  }
+
+  // ── Delta vs plan (actual start minus planned start) ─────────
+  let deltaPlanCell = '<td style="color:#555;text-align:center">–</td>';
+  if(live && s.aStart !== null && s.aStart !== undefined){
+    const delta = Math.round(s.aStart - s.start);
+    const dStr  = delta===0 ? '0s' : (delta>0?'+':'')+delta+'s';
+    const dCol  = delta > 30 ? '#E8002D' : delta < -30 ? '#39D353' : '#C0C0C0';
+    const dTitle = delta>0?'Forsinket':'Foran plan';
+    deltaPlanCell = '<td style="color:'+dCol+';font-weight:600;font-size:11px;text-align:center" title="'+dTitle+'">'+dStr+'</td>';
+  }
+
+  // ── Actual laps + deviation ───────────────────────────────────
   let actualCell='<td></td><td></td>';
   if(live){
-    const actVal = (typeof actualLaps !== 'undefined' && actualLaps[s.sn] !== undefined)
+    const actVal = (typeof actualLaps!=='undefined' && actualLaps[s.sn]!==undefined)
       ? actualLaps[s.sn] : '';
     if(s.status==='done'){
-      // Show input for completed stints
-      const dev = actVal!=='' ? (actVal - rn) : '';
+      const dev      = actVal!=='' ? (actVal - rn) : '';
       const devColor = dev===''?'#555':(dev>0?'#39D353':(dev<0?'#E8002D':'#C0C0C0'));
-      const devStr  = dev===''?'–':(dev>0?'+'+dev:String(dev));
+      const devStr   = dev===''?'–':(dev>0?'+'+dev:String(dev));
       actualCell = '<td><input type="number" value="'+actVal+'" min="0" max="999"'
         +' style="width:58px;height:26px;padding:0 4px;font-size:11px;font-variant-numeric:tabular-nums;'
         +'border:1px solid #2A2A2A;border-radius:4px;background:#1E1E1E;color:#fff;text-align:center"'
@@ -1174,17 +1207,23 @@ function stintRow(s, sn, live){
         +' aria-label="Faktisk antall runder for stint '+s.sn+'"></td>'
         +'<td style="color:'+devColor+';font-weight:700;font-size:12px;text-align:center">'+devStr+'</td>';
     } else {
-      // Active or future: show planned only, no input yet
       actualCell = '<td style="color:#555;font-size:11px;text-align:center">–</td>'
                  +'<td style="color:#555;font-size:11px;text-align:center">–</td>';
     }
   }
-  return '<tr style="'+(live&&s.status==='done'?'opacity:.4':'')+'"><td style="font-size:10px;color:#555;font-weight:700">'+sn+'</td>'
+
+  return '<tr style="'+(live&&s.status==='done'?'opacity:.55':'')+'"><td style="font-size:10px;color:#555;font-weight:700">'+sn+'</td>'
     +'<td>'+kB2(s.sn)+'</td>'
-    +'<td><span style="display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap"><span style="width:8px;height:8px;border-radius:50%;background:'+s.col+';display:inline-block;flex-shrink:0"></span><span style="color:#fff">'+s.name+'</span>'+ri+bt+'</span></td>'
-    +'<td>'+fm(s.start)+'</td><td>'+fm(s.end)+'</td><td>'+Math.round(dur/60)+'m</td>'
+    +'<td><span style="display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap">'
+      +'<span style="width:8px;height:8px;border-radius:50%;background:'+s.col+';display:inline-block;flex-shrink:0"></span>'
+      +'<span style="color:#fff">'+s.name+'</span>'+ri+bt+'</span></td>'
+    +'<td>'+fm(actualStart)+'</td>'
+    +'<td>'+fm(s.end)+'</td>'
+    +'<td>'+Math.round(dur/60)+'m</td>'
     +'<td style="color:#fff">~'+rn+'<span style="font-size:10px;color:#555"> ('+fmL(s.lT||40)+'s)</span></td>'
-    +'<td class="sign-td">\u26d1 '+fm(sgT)+'</td>'
+    +'<td class="sign-td">⛑ '+fm(sgT)+'</td>'
+    +faktSluttCell
+    +deltaPlanCell
     +'<td><span class="badge '+cl+'">'+lb+'</span></td>'
     +actualCell+'</tr>';
 }
@@ -1257,6 +1296,7 @@ function pitNaa(){
   if(actIdx<0){ann('Ingen aktiv f\u00f8rer akkurat n\u00e5.');return;}
   lStints[actIdx].status='done';
   lStints[actIdx].end=t;
+  lStints[actIdx].actualEnd=t; // record actual finish time
 
   // Steg 2: merk neste pit som ferdig (den rett etter aktivt stint)
   let pitIdx=-1;
@@ -1451,6 +1491,27 @@ function setActualLaps(sn, val){
   rndrLive(); // re-render to update deviation column
 }
 
+function calcEstTotalRounds(){
+  // Based on completed actual laps + planned rounds for remaining stints
+  const drives = lStints.filter(s=>s.type==='drive');
+  let total = 0;
+  drives.forEach(s=>{
+    if(s.status==='done'){
+      // Use actual laps if entered, else planned
+      total += (actualLaps[s.sn]!==undefined) ? actualLaps[s.sn] : (s.plannedRounds||Math.floor((s.end-s.start)/(s.lT||40)));
+    } else if(s.status==='active'){
+      // Actual so far + remaining planned
+      const soFar  = Math.floor((lElap-(s.aStart||s.start))/(s.lT||40));
+      const remSec = Math.max(0, s.end - lElap);
+      const remRnd = Math.floor(remSec/(s.lT||40));
+      total += soFar + remRnd;
+    } else {
+      total += s.plannedRounds || Math.floor((s.end-s.start)/(s.lT||40));
+    }
+  });
+  return total;
+}
+
 function rndrLive(){
   let sn=0; const hasR=lStints.some(s=>s.rep&&s.status!=='done');
   document.getElementById('rpNote').style.display=hasR?'flex':'none';
@@ -1459,6 +1520,42 @@ function rndrLive(){
   document.getElementById('liveTbl').innerHTML=lStints
     .filter(s=>s.type==='drive')
     .map(s=>stintRow(s,++sn,true)).join('');
+
+  // Estimated total rounds summary
+  const estRnd = calcEstTotalRounds();
+  const doneRnd = lStints.filter(s=>s.type==='drive'&&s.status==='done')
+    .reduce((a,s)=>a+(actualLaps[s.sn]!==undefined?actualLaps[s.sn]:(s.plannedRounds||0)),0);
+  const actRnd = (()=>{const act=lStints.find(s=>s.type==='drive'&&s.status==='active');
+    return act?Math.floor((lElap-(act.aStart||act.start))/(act.lT||40)):0;})();
+  const liveRnd = doneRnd + actRnd;
+
+  // Planned rounds = sum of plannedRounds on all drive stints (set at strategy build time)
+  const planRnd = lStints.filter(s=>s.type==='drive')
+    .reduce((a,s)=>a+(s.plannedRounds||Math.floor((s.end-s.start)/(s.lT||40))),0);
+  const diffRnd = estRnd - planRnd;
+  const diffCol = diffRnd > 0 ? '#39D353' : diffRnd < 0 ? '#E8002D' : '#C0C0C0';
+  const diffStr = diffRnd === 0 ? 'I rute' : (diffRnd>0?'+':'')+diffRnd+' vs plan';
+
+  const sumEl = document.getElementById('liveRoundsSummary');
+  if(sumEl){
+    sumEl.innerHTML =
+      '<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;'
+      +'padding:10px 0;border-bottom:1px solid #2A2A2A;margin-bottom:8px">'
+      +'<div>'
+        +'<div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Runder kjørt nå</div>'
+        +'<div style="font-size:22px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums">'+liveRnd+'</div>'
+      +'</div>'
+      +'<div style="width:1px;height:40px;background:#2A2A2A;flex-shrink:0"></div>'
+      +'<div>'
+        +'<div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Estimert totalt ved mål</div>'
+        +'<div style="display:flex;align-items:baseline;gap:8px">'
+          +'<span style="font-size:22px;font-weight:700;color:#39D353;font-variant-numeric:tabular-nums">~'+estRnd+'</span>'
+          +'<span style="font-size:12px;color:#555">av '+planRnd+' planlagt</span>'
+        +'</div>'
+        +'<div style="font-size:11px;font-weight:600;color:'+diffCol+';margin-top:2px">'+diffStr+'</div>'
+      +'</div>'
+      +'</div>';
+  }
 }
 
 function rndrAll(){rndrTL('lTlBar','lTlR','lBBar',lStints,rSec);rndrLive();rndrNextAct();}

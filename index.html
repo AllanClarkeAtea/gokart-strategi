@@ -809,16 +809,19 @@ function maxAllowedNow(di, accDT){
 // snStart   = startverdi for stint-nummer
 // forbidFirst = driver-index som IKKE kan starte (pga. nettopp kjørt)
 function buildPlan(t0, pitsDone, accDT, snStart, forbidFirst){
-  const n        = drivers.length;
-  const isNitro  = (mode === 'speed5');
-  const pitsLeft = Math.max(0, minP - pitsDone);
+  const n       = drivers.length;
+  const isNitro = (mode === 'speed5');
 
-  // Beregn total tilgjengelig kjøretid
+  // pitsLeft: how many more pits we MUST do to meet minP
+  // nStints:  a pit separates every pair of stints, so we need at least pitsLeft+1 drive stints
+  const pitsLeft = Math.max(0, minP - pitsDone);
+  const minDriveStints = pitsLeft + 1; // minimum drive stints to fulfil minP
+
+  // Total drive time available (reserve time for mandatory pits)
   const totalDriveTime = Math.max(0, rSec - t0 - pitsLeft * pitSec);
 
-  // ── Bestem kjøretid per fører ────────────────────────────────
-  // Nitro: vektet etter fart. Standard: likt.
-  let targets; // målkjøretid per fører (kan overskrides av MAX_S/MAX_TOT)
+  // ── Target drive time per driver ──────────────────────────────
+  let targets;
   if(isNitro){
     const lapTimes = drivers.map(d => d.lt || 40);
     const minLap   = Math.min(...lapTimes);
@@ -826,67 +829,95 @@ function buildPlan(t0, pitsDone, accDT, snStart, forbidFirst){
     const lapRange = maxLap - minLap || 1;
     const weights  = drivers.map(d => 0.3 + ((maxLap-(d.lt||40))/lapRange)*0.7);
     const wSum     = weights.reduce((a,b)=>a+b,0);
-    targets        = drivers.map((d,i) => Math.min(MAX_TOT - accDT[i], totalDriveTime * weights[i]/wSum));
+    targets = drivers.map((d,i) => Math.min(MAX_TOT - accDT[i], totalDriveTime * weights[i]/wSum));
   } else {
     const share = totalDriveTime / n;
-    targets     = drivers.map((d,i) => Math.min(MAX_TOT - accDT[i], share));
+    targets = drivers.map((d,i) => Math.min(MAX_TOT - accDT[i], share));
   }
 
-  // ── Bygg stint-sekvens iterativt ────────────────────────────
-  // Vi legger til stints ett og ett. For hvert nytt stint:
-  //   - Velg fører med mest gjenværende target-tid (og ikke forrige)
-  //   - Tildel tid = min(target_remaining, MAX_S, allowed_by_MAX_TOT)
-  //   - Legg til pit mellom stints
-  //   - Stopp når vi fyller rSec
-  const result  = [];
-  const remTgt  = targets.slice(); // gjenværende mål per fører
-  const curDT   = accDT.slice();   // løpende akkumulert tid
-  let   clk     = t0;
-  let   pitN    = pitsDone;
-  let   sn      = snStart || 1;
-  let   lastDi  = (forbidFirst !== undefined) ? forbidFirst : -1;
-  let   maxIter = 50; // sikkerhetsstopp
+  const result = [];
+  const remTgt = targets.slice();
+  const curDT  = accDT.slice();
+  let clk      = t0;
+  let pitN     = pitsDone;
+  let sn       = snStart || 1;
+  let lastDi   = (forbidFirst !== undefined) ? forbidFirst : -1;
+  let maxIter  = 60;
 
-  while(clk < rSec && maxIter-- > 0){
-    const remaining = rSec - clk;
+  while(maxIter-- > 0){
+    const remaining   = rSec - clk;
+    const pitsStillNeeded = Math.max(0, minP - pitN);      // must-do pits remaining
+    const driveStintsDone = result.filter(s=>s.type==='drive').length;
+    const driveStintsLeft = Math.max(0, minDriveStints - driveStintsDone); // min drive stints left
 
-    // Finn beste kandidat (ikke lastDi, har tid igjen, kan kjøre)
+    // Can we stop? Only if we've filled rSec AND met minP
+    if(clk >= rSec && pitN >= minP) break;
+
+    // If we've hit rSec but still need more pits, we add them
+    // by splitting the last stint shorter and inserting more pits
+    if(clk >= rSec && pitN < minP){
+      // Find last drive stint and shorten it to make room for more pits+drives
+      const lastD = [...result].reverse().find(s=>s.type==='drive');
+      if(lastD && (lastD.end - lastD.start) > MIN_S + pitSec + MIN_S){
+        // Split: shorten last drive, add pit, add one more short drive
+        const origEnd = lastD.end;
+        const splitAt = lastD.start + Math.min(MAX_S, Math.round((lastD.end-lastD.start)*0.55));
+        lastD.end = splitAt;
+        lastD.signAt = sgAt(splitAt);
+        lastD.plannedRounds = Math.floor((splitAt-lastD.start)/(lastD.lT||40));
+        lastD.bc = boostW.filter(([a])=>a>=lastD.start&&a<splitAt).length;
+        clk = splitAt;
+        // Continue loop to add pit + drive
+        continue;
+      }
+      break; // can't fit more pits
+    }
+
+    if(remaining <= 0 && pitN >= minP) break;
+
+    // Pick best driver
     let best = -1, bestScore = -Infinity;
     for(let di = 0; di < n; di++){
       if(di === lastDi) continue;
       const allowed = maxAllowedNow(di, curDT);
       if(allowed < MIN_S) continue;
-      // Floor at 0.01 keeps driver eligible even when over target,
-      // ensuring minP pits and full rSec coverage are always achieved
       const score = Math.max(0.01, isNitro
         ? (remTgt[di] / (drivers[di].lt||40))
         : remTgt[di]);
       if(score > bestScore){ bestScore = score; best = di; }
     }
-
-    // Ingen kandidat uten siste-fører-regelen – prøv med alle
+    // Fallback: relax no-consecutive rule
     if(best < 0){
       for(let di = 0; di < n; di++){
         const allowed = maxAllowedNow(di, curDT);
         if(allowed < MIN_S) continue;
-        const rawFb = isNitro ? (remTgt[di] / (drivers[di].lt||40)) : remTgt[di];
-        const scoreFb = Math.max(rawFb, 0.01);
-        if(scoreFb > bestScore){ bestScore = scoreFb; best = di; }
+        const score = Math.max(0.01, isNitro
+          ? (remTgt[di] / (drivers[di].lt||40))
+          : remTgt[di]);
+        if(score > bestScore){ bestScore = score; best = di; }
       }
     }
+    if(best < 0) break;
 
-    if(best < 0) break; // ingen fører kan kjøre mer (alle har nådd MAX_TOT)
-
-    const di   = best;
-    const lT   = drivers[di].lt || 40;
+    const di      = best;
+    const lT      = drivers[di].lt || 40;
     const allowed = maxAllowedNow(di, curDT);
 
-    // Er dette siste stint? (ingen pit etter, bare fyll til rSec)
-    // Sjekk om vi har nok pit-slots igjen for resterende stints
-    // For enkelhets skyld: tildel opp til MAX_S, og fyll siste stint til rSec
-    let sl = Math.min(allowed, Math.max(0, remaining - (pitsLeft > pitN - pitsDone ? pitSec : 0)));
+    // Calculate stint length.
+    // If we still need more pits, cap stint so there's room for pit+MIN_S after.
+    const pitsAfterThis = Math.max(0, minP - pitN - 1); // pits needed after next pit
+    const reserve = pitsAfterThis * (pitSec + MIN_S);
+    let sl = Math.min(allowed, remaining - pitSec - MIN_S - reserve);
     sl = Math.max(MIN_S, Math.min(MAX_S, sl));
-    sl = Math.min(sl, remaining);
+    if(sl <= 0) sl = MIN_S;
+
+    // If this is the LAST drive stint (after last required pit), fill to rSec
+    // True only when ALL required pits are already done
+    const isLastStint = (pitN >= minP);
+    if(isLastStint){
+      sl = Math.min(allowed, remaining);
+      sl = Math.max(MIN_S, Math.min(MAX_S, sl));
+    }
 
     const end  = Math.min(clk + sl, rSec);
     const sgT  = sgAt(end);
@@ -895,39 +926,36 @@ function buildPlan(t0, pitsDone, accDT, snStart, forbidFirst){
 
     result.push({
       type:'drive', di,
-      name:    drivers[di].name || ('F\u00f8rer '+(di+1)),
-      start:   clk, end, col: C[di%C.length], lT,
-      signAt:  sgT, status:'future', aStart:null, rep:false,
-      sn, bc,  plannedRounds: pRnd,
+      name: drivers[di].name || ('Fører '+(di+1)),
+      start:clk, end, col:C[di%C.length], lT,
+      signAt:sgT, status:'future', aStart:null, rep:false,
+      sn, bc, plannedRounds:pRnd,
     });
 
-    remTgt[di] -= (end - clk);
-    curDT[di]  += (end - clk);
-    clk  = end;
-    sn++;
-    lastDi = di;
+    remTgt[di] -= (end-clk);
+    curDT[di]  += (end-clk);
+    clk = end; sn++; lastDi = di;
 
-    if(clk >= rSec) break;
-
-    // Legg til pit
-    const nxtDi = findNextDriver(di, curDT, remTgt, isNitro, n);
-    const wu    = WU * (drivers[nxtDi >= 0 ? nxtDi : 0]?.lt || 40);
-    const{ps, pe} = vPit(clk, pitSec, wu);
-    if(ps >= rSec) break;
-    pitN++;
-    result.push({
-      type:'pit', start:ps, end:Math.min(pe,rSec),
-      num: pitN, status:'future', rep:false,
-    });
-    clk = Math.min(pe, rSec);
-    if(clk >= rSec) break;
+    // Add pit UNLESS we have already met minP AND clk >= rSec
+    if(clk < rSec || pitN < minP){
+      const nxtDi = findNextDriver(di, curDT, remTgt, isNitro, n);
+      const wu    = WU * (drivers[nxtDi >= 0 ? nxtDi : 0]?.lt || 40);
+      const{ps, pe} = vPit(clk, pitSec, wu);
+      if(ps < rSec){
+        pitN++;
+        result.push({
+          type:'pit', start:ps, end:Math.min(pe,rSec),
+          num:pitN, status:'future', rep:false,
+        });
+        clk = Math.min(pe, rSec);
+      }
+    }
   }
 
-  // Garantér at siste drive-stint slutter på rSec
+  // Guarantee last drive stint ends exactly at rSec (within MAX_S)
   const lastDrive = [...result].reverse().find(s=>s.type==='drive');
   if(lastDrive && lastDrive.end < rSec){
-    const gap     = rSec - lastDrive.end;
-    const newEnd  = Math.min(lastDrive.start + MAX_S, rSec);
+    const newEnd = Math.min(lastDrive.start + MAX_S, rSec);
     if(newEnd > lastDrive.end){
       lastDrive.end          = newEnd;
       lastDrive.signAt       = sgAt(newEnd);
@@ -936,7 +964,7 @@ function buildPlan(t0, pitsDone, accDT, snStart, forbidFirst){
     }
   }
 
-  return { stints: result, finalDT: curDT };
+  return { stints:result, finalDT:curDT };
 }
 
 // Finn neste beste kandidat for pitstop-planlegging

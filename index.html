@@ -391,6 +391,23 @@ tr:hover td{background:#1A1A1A}
 
   <div class="card">
     <h2 class="sec">Live-justeringer</h2>
+
+    <!-- Bytt neste fører -->
+    <div class="rbox" id="byttBox">
+      <div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">
+        🔀 Bytt neste fører
+      </div>
+      <div style="font-size:12px;color:#C0C0C0;margin-bottom:8px" id="byttPlanInfo">–</div>
+      <div class="rrow">
+        <select id="byttSelect" style="flex:1;min-width:140px" aria-label="Velg ny fører for neste stint"></select>
+        <button class="btn pr" onclick="doBytt()">Bytt neste</button>
+      </div>
+      <div style="font-size:11px;color:#555;margin-top:7px;line-height:1.5">
+        Setter inn valgt fører på neste stint. Rekkefølgen for øvrige stints beholdes og tider rebalanseres automatisk. Alle regler overholdes.
+      </div>
+    </div>
+
+    <!-- Pit nå -->
     <div class="rbox">
       <div class="rrow">
         <button class="btn pr" style="background:#1A0E00;color:#C9A84C;border-color:#C9A84C;font-size:14px;font-weight:700;padding:10px 20px" onclick="pitNaa()">🏁 Pit nå</button>
@@ -1198,7 +1215,7 @@ function doBytt(){
   const futIdx=lStints.findIndex((s,i)=>i>nxtIdx&&s.status==='future');
   if(futIdx>=0) replanKeepOrder(futIdx,nxt.end);
   const msg=fm(lElap)+' \u2013 Stint '+nxt.sn+': byttet til '+(d.name||('F\u00f8rer '+(di+1)));
-  addLog(msg); ann(msg); updSel(true); rndrAll();
+  addLog(msg); ann(msg); updByttSelect(true); rndrAll();
 }
 
 // ── Pit na ────────────────────────────────────────────────────
@@ -1240,7 +1257,7 @@ function pitNaa(){
     // Just log and return; the active stint will run to rSec
     addLog(fm(t)+' \u2013 Pit registrert. Siste f\u00f8rer fullforer l\u00f8pet.');
     ann('Pit kl. '+fm(t)+'.');
-    updSel(true); rndrAll(); rndrBoostCountdown(); return;
+    updByttSelect(true); rndrAll(); rndrBoostCountdown(); return;
   }
 
   // Steg 4: aktiver neste drive-stint fra na
@@ -1286,7 +1303,7 @@ function pitNaa(){
   }
 
   const msg=fm(t)+' \u2013 Pit n\u00e5: '+nds.name+' ut p\u00e5 banen (stint '+nds.sn+')';
-  addLog(msg); ann(msg); updSel(true); rndrAll();
+  addLog(msg); ann(msg); updByttSelect(true); rndrAll();
   shAlert('Pit registrert kl. '+fm(t)+'. '+nds.name+' kj\u00f8rer stint '+nds.sn+'.');
 }
 
@@ -1302,7 +1319,7 @@ function goLive(){
   document.getElementById('lBSum').textContent=bsum();
   document.getElementById('lContent').style.display='block';
   document.getElementById('lEmpty').style.display='none';
-  updSel(true); rndrAll();
+  updByttSelect(true); rndrAll();
   document.querySelectorAll('.tab').forEach(t=>{t.classList.toggle('on',t.dataset.t==='live');t.setAttribute('aria-selected',t.dataset.t==='live'?'true':'false');});
   document.querySelectorAll('.tc').forEach(t=>t.classList.toggle('on',t.id==='tc-live'));
 }
@@ -1334,7 +1351,7 @@ function tick(){
   document.getElementById('lClock').textContent=fm(lElap);
   document.getElementById('lRem').textContent=fm(Math.max(0,rSec-lElap));
   document.getElementById('nowL').style.left=(lElap/rSec*100).toFixed(2)+'%';
-  chkSign(); rndrNextAct(); updSel(false); rndrBoostCountdown();
+  chkSign(); rndrNextAct(); updByttSelect(false); rndrBoostCountdown();
 }
 
 function chkSign(){
@@ -1918,6 +1935,120 @@ function exportExcel(mode_){
   const fname   = 'gokart-strategi-'+dateStr+'-'+timeStr+'.xlsx';
   XLSX.writeFile(wb, fname);
   ann('Excel-fil eksportert: '+fname);
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// BYTT NESTE FØRER (live)
+// ═══════════════════════════════════════════════════════════════
+// updByttSelect: oppdaterer dropdown og infotekst.
+// Kalt fra rndrAll() og goLive() – ikke fra tick() for å unngå
+// at brukerens valg overskrives mens klokken tikker.
+let _byttLastNxt = -1;
+
+function updByttSelect(force){
+  const sel     = document.getElementById('byttSelect');
+  const infoEl  = document.getElementById('byttPlanInfo');
+  const byttBox = document.getElementById('byttBox');
+  if(!sel) return;
+
+  // Find next planned drive stint (after active)
+  const actIdx = lStints.findIndex(s=>s.type==='drive'&&s.status==='active');
+  let nxt = null;
+  if(actIdx>=0){
+    for(let i=actIdx+1;i<lStints.length;i++){
+      if(lStints[i].type==='drive'&&lStints[i].status==='future'){nxt=lStints[i];break;}
+    }
+  } else {
+    nxt = lStints.find(s=>s.type==='drive'&&s.status==='future')||null;
+  }
+
+  if(!nxt){
+    if(infoEl) infoEl.textContent='Ingen gjenstående stints.';
+    sel.innerHTML='<option>–</option>';
+    sel.disabled=true;
+    _byttLastNxt=-1;
+    return;
+  }
+
+  sel.disabled=false;
+
+  // Only rebuild options when planned driver changed or forced
+  if(force || nxt.di !== _byttLastNxt){
+    const prevVal = force ? nxt.di : +sel.value;
+    _byttLastNxt  = nxt.di;
+    sel.innerHTML = drivers.map((d,i)=>
+      `<option value="${i}">${d.name||('Fører '+(i+1))}${i===nxt.di?' ← planlagt':''}</option>`
+    ).join('');
+    const vals = [...sel.options].map(o=>+o.value);
+    sel.value  = vals.includes(prevVal) ? prevVal : nxt.di;
+  }
+
+  if(infoEl) infoEl.textContent =
+    `Planlagt: ${nxt.name} · Stint ${nxt.sn} · Ut: ${fm(nxt.start)}`;
+}
+
+function doBytt(){
+  const sel = document.getElementById('byttSelect');
+  if(!sel || sel.disabled) return;
+  const di  = +sel.value;
+  const d   = drivers[di];
+
+  // Find next planned stint
+  const actIdx = lStints.findIndex(s=>s.type==='drive'&&s.status==='active');
+  let nxt=null, nxtIdx=-1;
+  if(actIdx>=0){
+    for(let i=actIdx+1;i<lStints.length;i++){
+      if(lStints[i].type==='drive'&&lStints[i].status==='future'){nxt=lStints[i];nxtIdx=i;break;}
+    }
+  } else {
+    nxtIdx=lStints.findIndex(s=>s.type==='drive'&&s.status==='future');
+    if(nxtIdx>=0) nxt=lStints[nxtIdx];
+  }
+  if(!nxt){ ann('Ingen neste stint å bytte.'); return; }
+
+  // Rule: cannot be same as currently active driver
+  const act = lStints.find(s=>s.type==='drive'&&s.status==='active');
+  if(act && act.di===di){
+    alert(`${d.name||('Fører '+(di+1))} kjører allerede aktivt stint.
+Kan ikke sette samme fører to ganger på rad.`);
+    return;
+  }
+
+  // Rule: cannot be same as driver immediately before this stint
+  let prevDrive=null;
+  for(let i=nxtIdx-1;i>=0;i--){ if(lStints[i].type==='drive'){prevDrive=lStints[i];break;} }
+  if(prevDrive && prevDrive.di===di){
+    alert(`${d.name||('Fører '+(di+1))} kjørte nettopp forrige stint.
+Kan ikke sette samme fører to ganger på rad.`);
+    return;
+  }
+
+  if(di===nxt.di){ ann('Fører er allerede planlagt for dette stintet.'); return; }
+
+  // Rule: check MAX_TOT
+  const dt = getDT();
+  if(dt[di] >= MAX_TOT){
+    alert(`${d.name||('Fører '+(di+1))} har allerede nådd maks kjøretid (50 min).`);
+    return;
+  }
+
+  // Apply swap
+  const oldName = nxt.name;
+  nxt.di=di; nxt.name=d.name||('Fører '+(di+1));
+  nxt.col=C[di%C.length]; nxt.lT=d.lt; nxt.rep=true;
+  nxt.signAt=sgAt(nxt.end);
+  nxt.bc=boostW.filter(([a])=>a>=nxt.start&&a<nxt.end).length;
+  nxt.plannedRounds=Math.floor((nxt.end-nxt.start)/(nxt.lT||40));
+
+  // Replan subsequent stints (keep order, adjust times only)
+  const futIdx=lStints.findIndex((s,i)=>i>nxtIdx&&s.status==='future');
+  if(futIdx>=0) replanKeepOrder(futIdx, nxt.end);
+
+  const msg=`${fm(lElap)} – Stint ${nxt.sn}: ${oldName} byttet ut med ${nxt.name}`;
+  addLog(msg); ann(msg);
+  updByttSelect(true);
+  rndrAll();
 }
 
 // ── Init ──────────────────────────────────────────────────────

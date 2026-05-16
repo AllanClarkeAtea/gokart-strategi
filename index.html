@@ -785,6 +785,18 @@ function assignTimesNitro(seq, t0, pitsDone, dT, snStart){
 // Nitro-modus: raskere førere får mer tid (flere/lengre stints)
 // Standard/Boost: jevn fordeling mellom alle førere
 
+// ── Kart-historikk (brukt av buildSeqNitro og buildStrat) ────
+let kartHistory = {};
+function resetKartHistory(){ kartHistory = {}; }
+function recordKart(di, sn){
+  if(!kartHistory[di]) kartHistory[di] = [];
+  kartHistory[di].push(sn%2===1 ? 'odd' : 'even');
+}
+function kartPenalty(di, stintNum){
+  const parity = stintNum%2===1 ? 'odd' : 'even';
+  return (kartHistory[di]||[]).filter(p=>p===parity).length;
+}
+
 // ── Hjelpefunksjon: hvor mye kan fører di kjøre nå? ──────────
 function maxAllowedNow(di, accDT){
   return Math.min(MAX_S, Math.max(0, MAX_TOT - accDT[di]));
@@ -1065,21 +1077,32 @@ function replanKeepOrder(fromLIdx, newStart){
 
 // ── Generer strategi ──────────────────────────────────────────
 function generate(){
-  rdUI(); vKart();
-  resetKartHistory(); // fresh plan – clear kart history
+  try {
+    rdUI(); vKart();
+    resetKartHistory();
 
-  const bad=drivers.filter(d=>isNaN(d.lt)||d.lt<10);
-  if(bad.length){alert('Mangler rundetid: '+bad.map((d,i)=>d.name||('F\u00f8rer '+(i+1))).join(', '));return;}
-  rSec=+document.getElementById('raceDur').value*60;
-  minP=+document.getElementById('minPits').value;
-  pitSec=+document.getElementById('pitDur').value;
-  lastBI=+document.getElementById('bi').value||10;
-  lastBD=+document.getElementById('bd').value||60;
-  boostW=mkBW(lastBI,lastBD,rSec);
-  const{stints:s}=buildStrat(0,0,drivers.map(()=>0),1);
-  stints=s; stints.forEach(x=>{x.rep=false;x.status='future';});
-  rndrSetup(stints); document.getElementById('res').style.display='block';
-  ann('Strategi: '+stints.filter(x=>x.type==='pit').length+' pitstop.');
+    const bad=drivers.filter(d=>isNaN(d.lt)||d.lt<10);
+    if(bad.length){alert('Mangler rundetid: '+bad.map((d,i)=>d.name||('F\u00f8rer '+(i+1))).join(', '));return;}
+    rSec=+document.getElementById('raceDur').value*60;
+    minP=+document.getElementById('minPits').value;
+    pitSec=+document.getElementById('pitDur').value;
+    lastBI=+document.getElementById('bi').value||10;
+    lastBD=+document.getElementById('bd').value||60;
+    boostW=mkBW(lastBI,lastBD,rSec);
+    const result=buildStrat(0,0,drivers.map(()=>0),1);
+    if(!result || !result.stints || result.stints.length===0){
+      alert('Klarte ikke å beregne strategi. Sjekk at alle rundetider er fylt inn.');
+      return;
+    }
+    stints=result.stints;
+    stints.forEach(x=>{x.rep=false;x.status='future';});
+    rndrSetup(stints);
+    document.getElementById('res').style.display='block';
+    ann('Strategi: '+stints.filter(x=>x.type==='pit').length+' pitstop.');
+  } catch(err) {
+    console.error('generate() feil:', err);
+    alert('Feil ved beregning: '+err.message+'\n\nSjekk konsollen for detaljer.');
+  }
 }
 
 // ── Tabellrad ─────────────────────────────────────────────────
